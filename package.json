@@ -1,0 +1,23 @@
+{
+  "name": "taiwan-accounting-ocr-platform",
+  "private": true,
+  "workspaces": [
+    "app/web"
+  ],
+  "scripts": {
+    "setup:dirs": "node scripts/ensure-project-paths.mjs",
+    "dev": "npm --workspace app/web run dev",
+    "build": "npm --workspace app/web run build",
+    "start": "npm --workspace app/web run start",
+    "db:up": "COMPOSE_PROJECT_NAME=accounting_ocr docker-compose up -d postgres",
+    "db:down": "COMPOSE_PROJECT_NAME=accounting_ocr docker-compose down",
+    "db:logs": "COMPOSE_PROJECT_NAME=accounting_ocr docker-compose logs -f postgres",
+    "db:migrate": "npm --workspace app/web run db:migrate",
+    "db:generate": "npm --workspace app/web run db:generate",
+    "db:studio": "npm --workspace app/web run db:studio",
+    "db:backup": "bash scripts/backup-postgres.sh",
+    "db:restore": "bash scripts/restore-postgres.sh",
+    "db:least-privilege": "bash scripts/apply-db-least-privilege.sh",
+    "seed:random": "node scripts/seed-random-accounting.mjs"
+  }
+}

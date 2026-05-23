@@ -1,0 +1,819 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ACCOUNTANT
+  REVIEWER
+  CLIENT_READONLY
+  ADMIN
+}
+
+enum DocumentType {
+  VAT_401
+  VAT_403
+  VAT_404
+  BALANCE_SHEET
+  INCOME_STATEMENT
+  CASH_FLOW
+  INVOICE
+  BANK_STATEMENT
+  FIXED_ASSET
+  INVENTORY
+  OTHER
+}
+
+enum OcrStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum ReviewStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_INFO
+}
+
+enum ReviewTaskStatus {
+  OPEN
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+}
+
+enum ValidationStatus {
+  PASS
+  WARNING
+  FAIL
+}
+
+enum StatementType {
+  BALANCE_SHEET
+  INCOME_STATEMENT
+  CASH_FLOW
+  EQUITY_CHANGE
+  OTHER
+}
+
+enum VatReturnType {
+  FORM_401
+  FORM_403
+  FORM_404
+}
+
+enum FilingStatus {
+  DRAFT
+  REVIEWED
+  FILED
+  LOCKED
+}
+
+enum ExportStatus {
+  QUEUED
+  GENERATED
+  FAILED
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  VOID
+}
+
+enum CounterpartyType {
+  CUSTOMER
+  VENDOR
+  BOTH
+}
+
+enum InvoiceKind {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PARTIAL
+  PAID
+  VOID
+}
+
+enum BankTransactionStatus {
+  UNMATCHED
+  MATCHED
+  RECONCILED
+}
+
+enum ReconciliationStatus {
+  OPEN
+  RECONCILED
+  LOCKED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BatchJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  RECOVERED
+}
+
+model User {
+  id                    String        @id @default(cuid())
+  email                 String        @unique
+  name                  String
+  passwordHash          String?
+  mustChangePassword    Boolean       @default(false)
+  failedLoginCount      Int           @default(0)
+  lockedUntil           DateTime?
+  lastPasswordChangedAt DateTime?
+  isActive              Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  companies             CompanyUser[]
+  auditLogs             AuditLog[]
+  reviewTasks           ReviewTask[]  @relation("ReviewTaskAssignee")
+  sessions              AuthSession[]
+  attachments           Attachment[]
+}
+
+model AuthSession {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  csrfTokenHash String?
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Company {
+  id                      String                   @id @default(cuid())
+  taxId                   String                   @unique
+  taxRegistrationNumber   String?
+  name                    String
+  representativeName      String?
+  address                 String?
+  industryCode            String?
+  filingType              String                   @default("401")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  users                   CompanyUser[]
+  periods                 AccountingPeriod[]
+  documents               Document[]
+  vatReturns              VatReturn[]
+  financialStatementLines FinancialStatementLine[]
+  validationResults       ValidationResult[]
+  exports                 ExportFile[]
+  auditLogs               AuditLog[]
+  accounts                Account[]
+  journalEntries          JournalEntry[]
+  counterparties          Counterparty[]
+  invoiceRecords          InvoiceRecord[]
+  bankAccounts            BankAccount[]
+  taxRecords              TaxRecord[]
+  attachments             Attachment[]
+  approvalRequests        ApprovalRequest[]
+  fixedAssets             FixedAsset[]
+  inventoryItems          InventoryItem[]
+  inventoryTransactions   InventoryTransaction[]
+  bankImportBatches       BankImportBatch[]
+  bankImportRules         BankImportRule[]
+  batchJobs               BatchJob[]
+}
+
+model CompanyUser {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      UserRole @default(ACCOUNTANT)
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+model AccountingPeriod {
+  id                  String                   @id @default(cuid())
+  companyId           String
+  year                Int
+  month               Int
+  taxPeriod           String
+  isLocked            Boolean                  @default(false)
+  lockedAt            DateTime?
+  lockedByUserId      String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  company             Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documents           Document[]
+  vatReturns          VatReturn[]
+  statementLines      FinancialStatementLine[]
+  validationResults   ValidationResult[]
+  exports             ExportFile[]
+  journalEntries      JournalEntry[]
+  invoiceRecords      InvoiceRecord[]
+  bankReconciliations BankReconciliation[]
+  taxRecords          TaxRecord[]
+  fixedAssets         FixedAsset[]
+  assetDepreciations  FixedAssetDepreciation[]
+  inventoryTransactions InventoryTransaction[]
+  bankImportBatches   BankImportBatch[]
+  batchJobs           BatchJob[]
+
+  @@unique([companyId, year, month])
+  @@index([companyId, taxPeriod])
+}
+
+model Document {
+  id             String             @id @default(cuid())
+  companyId      String
+  periodId       String?
+  documentType   DocumentType
+  originalName   String
+  mimeType       String?
+  sizeBytes      Int?
+  storagePath    String
+  fileHash       String
+  ocrStatus      OcrStatus          @default(QUEUED)
+  reviewStatus   ReviewStatus       @default(PENDING)
+  version        Int                @default(1)
+  rawMetadata    Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period         AccountingPeriod?  @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  ocrJobs        OcrJob[]
+  extractions    OcrExtraction[]
+  reviewTasks    ReviewTask[]
+  validationRows ValidationResult[]
+  exports        ExportFile[]
+  attachments    Attachment[]
+
+  @@index([companyId, documentType])
+  @@index([periodId])
+  @@index([fileHash])
+}
+
+model OcrJob {
+  id           String    @id @default(cuid())
+  documentId   String
+  status       OcrStatus @default(QUEUED)
+  engine       String    @default("pending")
+  queuedAt     DateTime  @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  errorMessage String?
+  rawPayload   Json?
+  document     Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([status, queuedAt])
+  @@index([documentId])
+}
+
+model OcrExtraction {
+  id               String            @id @default(cuid())
+  documentId       String
+  fieldKey         String
+  fieldLabel       String
+  rawValue         String?
+  normalizedValue  String?
+  confidence       Decimal?          @db.Decimal(5, 4)
+  pageNumber       Int?
+  boundingBox      Json?
+  validationStatus ValidationStatus?
+  reviewerNote     String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  document         Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, fieldKey])
+}
+
+model ReviewTask {
+  id             String           @id @default(cuid())
+  documentId     String
+  assigneeUserId String?
+  status         ReviewTaskStatus @default(OPEN)
+  title          String
+  dueAt          DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  document       Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  assignee       User?            @relation("ReviewTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model VatReturn {
+  id                    String           @id @default(cuid())
+  companyId             String
+  periodId              String
+  sourceDocumentId      String?
+  returnType            VatReturnType    @default(FORM_401)
+  taxableSales          Decimal?         @db.Decimal(18, 2)
+  zeroTaxSales          Decimal?         @db.Decimal(18, 2)
+  outputTax             Decimal?         @db.Decimal(18, 2)
+  purchaseExpenseAmount Decimal?         @db.Decimal(18, 2)
+  fixedAssetAmount      Decimal?         @db.Decimal(18, 2)
+  inputTax              Decimal?         @db.Decimal(18, 2)
+  nonDeductibleInputTax Decimal?         @db.Decimal(18, 2)
+  payableTax            Decimal?         @db.Decimal(18, 2)
+  retainedTaxCredit     Decimal?         @db.Decimal(18, 2)
+  refundTax             Decimal?         @db.Decimal(18, 2)
+  filingStatus          FilingStatus     @default(DRAFT)
+  filingDate            DateTime?
+  rawFields             Json?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  company               Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period                AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, periodId, returnType])
+  @@index([filingStatus])
+}
+
+model Account {
+  id            String        @id @default(cuid())
+  companyId     String
+  parentId      String?
+  code          String
+  name          String
+  type          AccountType
+  normalBalance NormalBalance
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent        Account?      @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Account[]     @relation("AccountHierarchy")
+  journalLines  JournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+}
+
+model JournalEntry {
+  id               String            @id @default(cuid())
+  companyId        String
+  periodId         String?
+  entryNo          String
+  entryDate        DateTime
+  description      String
+  status           JournalStatus     @default(DRAFT)
+  sourceType       String?
+  sourceId         String?
+  reversalOfId     String?
+  voidReason       String?
+  voidedAt         DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period           AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  lines            JournalLine[]
+  bankTransactions BankTransaction[]
+  reversalOf       JournalEntry?     @relation("JournalReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversalEntries  JournalEntry[]    @relation("JournalReversal")
+  assetDepreciations FixedAssetDepreciation[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@unique([companyId, entryNo])
+  @@index([companyId, entryDate])
+  @@index([reversalOfId])
+  @@index([status])
+}
+
+model JournalLine {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  description    String?
+  debit          Decimal      @default(0) @db.Decimal(18, 2)
+  credit         Decimal      @default(0) @db.Decimal(18, 2)
+  sortOrder      Int          @default(0)
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+model Counterparty {
+  id             String           @id @default(cuid())
+  companyId      String
+  type           CounterpartyType
+  name           String
+  taxId          String?
+  email          String?
+  phone          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoiceRecords InvoiceRecord[]
+
+  @@unique([companyId, name, type])
+  @@index([companyId, type])
+}
+
+model InvoiceRecord {
+  id             String            @id @default(cuid())
+  companyId      String
+  periodId       String?
+  counterpartyId String?
+  kind           InvoiceKind
+  documentNo     String
+  documentDate   DateTime
+  dueDate        DateTime?
+  description    String?
+  subtotal       Decimal           @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal           @default(0) @db.Decimal(18, 2)
+  totalAmount    Decimal           @default(0) @db.Decimal(18, 2)
+  paidAmount     Decimal           @default(0) @db.Decimal(18, 2)
+  status         InvoiceStatus     @default(OPEN)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period         AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  counterparty   Counterparty?     @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, documentNo, kind])
+  @@index([companyId, kind, status])
+}
+
+model BankAccount {
+  id              String               @id @default(cuid())
+  companyId       String
+  bankName        String
+  accountName     String
+  accountNumber   String?
+  currency        String               @default("TWD")
+  openingBalance  Decimal              @default(0) @db.Decimal(18, 2)
+  currentBalance  Decimal              @default(0) @db.Decimal(18, 2)
+  isActive        Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions    BankTransaction[]
+  reconciliations BankReconciliation[]
+  importBatches   BankImportBatch[]
+
+  @@unique([companyId, accountName])
+}
+
+model BankTransaction {
+  id                    String                @id @default(cuid())
+  bankAccountId         String
+  matchedJournalEntryId String?
+  importBatchId         String?
+  transactionDate       DateTime
+  description           String
+  depositAmount         Decimal               @default(0) @db.Decimal(18, 2)
+  withdrawalAmount      Decimal               @default(0) @db.Decimal(18, 2)
+  status                BankTransactionStatus @default(UNMATCHED)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  bankAccount           BankAccount           @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  matchedJournalEntry   JournalEntry?         @relation(fields: [matchedJournalEntryId], references: [id], onDelete: SetNull)
+  importBatch           BankImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@index([bankAccountId, transactionDate])
+  @@index([importBatchId])
+  @@index([status])
+}
+
+model BankReconciliation {
+  id            String               @id @default(cuid())
+  bankAccountId String
+  periodId      String?
+  statementDate DateTime
+  bookBalance   Decimal              @default(0) @db.Decimal(18, 2)
+  bankBalance   Decimal              @default(0) @db.Decimal(18, 2)
+  difference    Decimal              @default(0) @db.Decimal(18, 2)
+  status        ReconciliationStatus @default(OPEN)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  bankAccount   BankAccount          @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  period        AccountingPeriod?    @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@index([bankAccountId, statementDate])
+}
+
+model TaxRecord {
+  id             String            @id @default(cuid())
+  companyId      String
+  periodId       String?
+  taxType        String            @default("VAT")
+  salesAmount    Decimal           @default(0) @db.Decimal(18, 2)
+  purchaseAmount Decimal           @default(0) @db.Decimal(18, 2)
+  outputTax      Decimal           @default(0) @db.Decimal(18, 2)
+  inputTax       Decimal           @default(0) @db.Decimal(18, 2)
+  payableTax     Decimal           @default(0) @db.Decimal(18, 2)
+  status         FilingStatus      @default(DRAFT)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period         AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, periodId, taxType])
+  @@index([status])
+}
+
+model FinancialStatementLine {
+  id               String           @id @default(cuid())
+  companyId        String
+  periodId         String
+  sourceDocumentId String?
+  statementType    StatementType
+  lineCode         String?
+  lineName         String
+  amountCurrent    Decimal?         @db.Decimal(18, 2)
+  amountPrior      Decimal?         @db.Decimal(18, 2)
+  parentLineCode   String?
+  sortOrder        Int              @default(0)
+  rawFields        Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period           AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, periodId, statementType])
+  @@index([lineCode])
+}
+
+model ValidationResult {
+  id         String            @id @default(cuid())
+  companyId  String
+  periodId   String?
+  documentId String?
+  ruleKey    String
+  ruleLabel  String
+  status     ValidationStatus
+  message    String
+  details    Json?
+  createdAt  DateTime          @default(now())
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period     AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  document   Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([documentId])
+}
+
+model Attachment {
+  id               String    @id @default(cuid())
+  companyId        String
+  documentId       String?
+  parentAttachmentId String?
+  uploadedByUserId String?
+  linkedEntityType String?
+  linkedEntityId   String?
+  fileName         String
+  storagePath      String
+  previewPath      String?
+  fileHash         String?
+  mimeType         String?
+  sizeBytes        Int?
+  version          Int       @default(1)
+  createdAt        DateTime  @default(now())
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document         Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  parentAttachment Attachment? @relation("AttachmentVersions", fields: [parentAttachmentId], references: [id], onDelete: SetNull)
+  versions         Attachment[] @relation("AttachmentVersions")
+  uploadedBy       User?      @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, linkedEntityType])
+  @@index([documentId])
+  @@index([parentAttachmentId])
+}
+
+model ApprovalRequest {
+  id            String         @id @default(cuid())
+  companyId     String
+  entityType    String
+  entityId      String?
+  title         String
+  requesterName String?
+  approverName  String?
+  status        ApprovalStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String?
+  userId      String?
+  entityType  String
+  entityId    String
+  action      String
+  beforeValue Json?
+  afterValue  Json?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  checksum    String?
+  createdAt   DateTime @default(now())
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([companyId, createdAt])
+  @@index([requestId])
+}
+
+model ExportFile {
+  id           String            @id @default(cuid())
+  companyId    String
+  periodId     String?
+  documentId   String?
+  exportType   String
+  status       ExportStatus      @default(QUEUED)
+  storagePath  String?
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period       AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  document     Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, exportType])
+}
+
+model FixedAsset {
+  id                                  String                    @id @default(cuid())
+  companyId                           String
+  periodId                            String?
+  assetNo                             String
+  name                                String
+  acquisitionDate                     DateTime
+  acquisitionCost                     Decimal                   @db.Decimal(18, 2)
+  salvageValue                        Decimal                   @default(0) @db.Decimal(18, 2)
+  usefulLifeMonths                    Int
+  depreciationAccountCode             String                    @default("6170")
+  accumulatedDepreciationAccountCode  String                    @default("1230")
+  status                              String                    @default("ACTIVE")
+  createdAt                           DateTime                  @default(now())
+  updatedAt                           DateTime                  @updatedAt
+  company                             Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period                              AccountingPeriod?         @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  depreciationRuns                    FixedAssetDepreciation[]
+
+  @@unique([companyId, assetNo])
+  @@index([companyId, status])
+}
+
+model FixedAssetDepreciation {
+  id                  String            @id @default(cuid())
+  fixedAssetId        String
+  periodId            String
+  journalEntryId      String?
+  depreciationAmount  Decimal           @db.Decimal(18, 2)
+  accumulatedAmount   Decimal           @db.Decimal(18, 2)
+  runDate             DateTime          @default(now())
+  fixedAsset          FixedAsset        @relation(fields: [fixedAssetId], references: [id], onDelete: Cascade)
+  period              AccountingPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  journalEntry        JournalEntry?     @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([fixedAssetId, periodId])
+  @@index([periodId])
+}
+
+model InventoryItem {
+  id                    String                 @id @default(cuid())
+  companyId             String
+  sku                   String
+  name                  String
+  unit                  String                 @default("件")
+  inventoryAccountCode  String                 @default("1140")
+  cogsAccountCode       String                 @default("5110")
+  quantityOnHand        Decimal                @default(0) @db.Decimal(18, 4)
+  averageCost           Decimal                @default(0) @db.Decimal(18, 4)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions          InventoryTransaction[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, isActive])
+}
+
+model InventoryTransaction {
+  id              String            @id @default(cuid())
+  companyId       String
+  periodId        String?
+  itemId          String
+  journalEntryId  String?
+  transactionDate DateTime
+  transactionType String
+  quantity        Decimal           @db.Decimal(18, 4)
+  unitCost        Decimal           @default(0) @db.Decimal(18, 4)
+  totalAmount     Decimal           @default(0) @db.Decimal(18, 2)
+  note            String?
+  createdAt       DateTime          @default(now())
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period          AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  item            InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  journalEntry    JournalEntry?     @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, transactionDate])
+  @@index([itemId])
+}
+
+model BankImportBatch {
+  id            String             @id @default(cuid())
+  companyId     String
+  bankAccountId String
+  periodId      String?
+  fileName      String
+  status        BatchJobStatus     @default(COMPLETED)
+  importedRows  Int                @default(0)
+  matchedRows   Int                @default(0)
+  errorMessage  String?
+  rawPreview    Json?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankAccount   BankAccount        @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  period        AccountingPeriod?  @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  transactions  BankTransaction[]
+
+  @@index([companyId, createdAt])
+  @@index([bankAccountId])
+}
+
+model BankImportRule {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  keyword     String
+  direction   String   @default("ANY")
+  accountCode String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+}
+
+model BatchJob {
+  id          String         @id @default(cuid())
+  companyId   String?
+  periodId    String?
+  jobType     String
+  status      BatchJobStatus @default(QUEUED)
+  message     String?
+  rawResult   Json?
+  createdAt   DateTime       @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  company     Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  period      AccountingPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([status])
+}

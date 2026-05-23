@@ -1,0 +1,23 @@
+{
+  "name": "@accounting-platform/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3000",
+    "db:generate": "prisma generate --schema ../../prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --name init --schema ../../prisma/schema.prisma",
+    "db:studio": "prisma studio --schema ../../prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "6",
+    "lucide-react": "^1.16.0",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "prisma": "6"
+  }
+}
