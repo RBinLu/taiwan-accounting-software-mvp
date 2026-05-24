@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { AuthError, CSRF_COOKIE, hashToken } from "./auth";
-import { ensureMvpContext } from "./demo-context";
+import { AuthError, CSRF_COOKIE, hashToken } from "./auth.js";
+import { AccountingError } from "./accounting-core.js";
+import { ensureMvpContext } from "./demo-context.js";
 
 export class SecurityError extends Error {
   constructor(message, status = 403) {
@@ -173,9 +174,14 @@ export function validateUploadFile(file, policy = ACCOUNTING_UPLOAD_POLICY) {
 }
 
 export function handleRouteError(error, fallbackMessage = "操作失敗") {
-  if (error instanceof AuthError || error instanceof SecurityError) {
+  if (
+    error instanceof AuthError ||
+    error instanceof SecurityError ||
+    error instanceof AccountingError
+  ) {
     return jsonError(error.message, error.status);
   }
 
-  return jsonError(error.message || fallbackMessage, error.status || 500);
+  console.error(fallbackMessage, error);
+  return jsonError(fallbackMessage, 500);
 }

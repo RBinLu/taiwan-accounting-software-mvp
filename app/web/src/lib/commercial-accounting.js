@@ -3,8 +3,8 @@ import {
   assertPeriodOpen,
   getTrialBalance,
   moneyValue
-} from "./accounting-core";
-import { prisma } from "./prisma";
+} from "./accounting-core.js";
+import { prisma } from "./prisma.js";
 
 function accountSignedBalance(row) {
   const balance = Number(row.debit) - Number(row.credit);
@@ -206,7 +206,7 @@ export async function generateFinancialStatements({
 }) {
   assertPeriodOpen(period);
 
-  const trialBalance = await getTrialBalance(company.id, period.id);
+  const trialBalance = await getTrialBalance(company.id, period.id, db);
   const revenueRows = trialBalance.rows
     .filter((row) => row.account.type === "REVENUE" && accountSignedBalance(row) !== 0)
     .map((row) => ({

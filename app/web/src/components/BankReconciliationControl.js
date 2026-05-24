@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { csrfHeaders } from "@/lib/client-security";
-import StatusBadge from "./StatusBadge";
+import StatusBadge from "./StatusBadge.js";
 
 function moneyText(value) {
   return new Intl.NumberFormat("zh-TW", {

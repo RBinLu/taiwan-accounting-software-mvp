@@ -1,15 +1,25 @@
-export const workspaceRoot =
-  process.env.ACCOUNTING_WORKSPACE_ROOT ||
-  "/Users/rbin/Documents/Codex/會計軟體";
+import path from "node:path";
+
+function normalizeWorkspaceRoot(value) {
+  const root = path.resolve(String(value || "").replace(/\/+$/, ""));
+  return root.endsWith("/app/web") ? root.slice(0, -"/app/web".length) : root;
+}
+
+const defaultWorkspaceRoot =
+  process.env.INIT_CWD || "/Users/rbin/Documents/Codex/會計軟體";
+
+export const workspaceRoot = normalizeWorkspaceRoot(
+  process.env.ACCOUNTING_WORKSPACE_ROOT || defaultWorkspaceRoot
+);
 
 export const uploadsDir = `${workspaceRoot}/storage/uploads`;
 export const exportsDir = `${workspaceRoot}/storage/exports`;
 
 export function assertInsideWorkspace(targetPath, label = "path") {
-  const resolved = String(targetPath);
-  const root = String(workspaceRoot);
+  const resolved = path.resolve(String(targetPath));
+  const root = path.resolve(workspaceRoot);
 
-  if (resolved !== root && !resolved.startsWith(`${root}/`)) {
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
     throw new Error(`${label} must stay inside the project folder: ${resolved}`);
   }
 

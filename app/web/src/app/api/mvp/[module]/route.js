@@ -49,6 +49,7 @@ export async function POST(request, { params }) {
     }
 
     let record;
+    let skipFinalAudit = false;
 
     switch (module) {
       case "accounts": {
@@ -98,6 +99,7 @@ export async function POST(request, { params }) {
           afterValue: record,
           request
         });
+        skipFinalAudit = true;
         break;
       }
       case "journal": {
@@ -111,25 +113,38 @@ export async function POST(request, { params }) {
       case "receivables":
       case "payables": {
         const kind = module === "receivables" ? "RECEIVABLE" : "PAYABLE";
-        const result = await prisma.$transaction((tx) =>
-          createInvoiceWithJournal({
+        const result = await prisma.$transaction(async (tx) => {
+          const invoiceResult = await createInvoiceWithJournal({
             company,
             period,
             payload,
             kind,
             db: tx
-          })
-        );
-        record = result.invoice;
-        await writeAudit({
-          companyId: company.id,
-          userId: user.id,
-          entityType: "journal",
-          entityId: result.journalEntry.id,
-          action: "AUTO_CREATE",
-          afterValue: result.journalEntry,
-          request
+          });
+          await writeAudit({
+            companyId: company.id,
+            userId: user.id,
+            entityType: "journal",
+            entityId: invoiceResult.journalEntry.id,
+            action: "AUTO_CREATE",
+            afterValue: invoiceResult.journalEntry,
+            request,
+            db: tx
+          });
+          await writeAudit({
+            companyId: company.id,
+            userId: user.id,
+            entityType: module,
+            entityId: invoiceResult.invoice.id,
+            action: "CREATE",
+            afterValue: invoiceResult.invoice,
+            request,
+            db: tx
+          });
+          return invoiceResult;
         });
+        record = result.invoice;
+        skipFinalAudit = true;
         break;
       }
       case "banking": {
@@ -307,45 +322,74 @@ export async function POST(request, { params }) {
         break;
       }
       case "assets": {
-        const result = await prisma.$transaction((tx) =>
-          createFixedAsset({
+        const result = await prisma.$transaction(async (tx) => {
+          const assetResult = await createFixedAsset({
             company,
             period,
             payload,
             db: tx
-          })
-        );
-        record = result.asset;
-        await writeAudit({
-          companyId: company.id,
-          userId: user.id,
-          entityType: "journal",
-          entityId: result.journalEntry.id,
-          action: "AUTO_CREATE",
-          afterValue: result.journalEntry,
-          request
+          });
+          if (assetResult.journalEntry) {
+            await writeAudit({
+              companyId: company.id,
+              userId: user.id,
+              entityType: "journal",
+              entityId: assetResult.journalEntry.id,
+              action: "AUTO_CREATE",
+              afterValue: assetResult.journalEntry,
+              request,
+              db: tx
+            });
+          }
+          await writeAudit({
+            companyId: company.id,
+            userId: user.id,
+            entityType: module,
+            entityId: assetResult.asset.id,
+            action: assetResult.created ? "CREATE" : "UPDATE",
+            beforeValue: assetResult.beforeValue,
+            afterValue: assetResult.asset,
+            request,
+            db: tx
+          });
+          return assetResult;
         });
+        record = result.asset;
+        skipFinalAudit = true;
         break;
       }
       case "inventory": {
-        const result = await prisma.$transaction((tx) =>
-          recordInventoryTransaction({
+        const result = await prisma.$transaction(async (tx) => {
+          const inventoryResult = await recordInventoryTransaction({
             company,
             period,
             payload,
             db: tx
-          })
-        );
-        record = result.transaction;
-        await writeAudit({
-          companyId: company.id,
-          userId: user.id,
-          entityType: "journal",
-          entityId: result.journalEntry.id,
-          action: "AUTO_CREATE",
-          afterValue: result.journalEntry,
-          request
+          });
+          await writeAudit({
+            companyId: company.id,
+            userId: user.id,
+            entityType: "journal",
+            entityId: inventoryResult.journalEntry.id,
+            action: "AUTO_CREATE",
+            afterValue: inventoryResult.journalEntry,
+            request,
+            db: tx
+          });
+          await writeAudit({
+            companyId: company.id,
+            userId: user.id,
+            entityType: module,
+            entityId: inventoryResult.transaction.id,
+            action: "CREATE",
+            afterValue: inventoryResult.transaction,
+            request,
+            db: tx
+          });
+          return inventoryResult;
         });
+        record = result.transaction;
+        skipFinalAudit = true;
         break;
       }
       case "audit":
@@ -396,15 +440,17 @@ export async function POST(request, { params }) {
         );
     }
 
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: module,
-      entityId: record.id,
-      action: "CREATE",
-      afterValue: record,
-      request
-    });
+    if (!skipFinalAudit) {
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: module,
+        entityId: record.id,
+        action: "CREATE",
+        afterValue: record,
+        request
+      });
+    }
     return NextResponse.json({ ok: true, record });
   } catch (error) {
     return handleRouteError(error, "新增資料失敗");

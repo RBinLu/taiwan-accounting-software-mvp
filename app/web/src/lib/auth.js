@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { cookies } from "next/headers";
-import { prisma } from "./prisma";
-import { assertInsideWorkspace, workspaceRoot } from "./project-paths";
+import { prisma } from "./prisma.js";
+import { assertInsideWorkspace, workspaceRoot } from "./project-paths.js";
 
 export const SESSION_COOKIE = "acctly_session";
 export const CSRF_COOKIE = "acctly_csrf";

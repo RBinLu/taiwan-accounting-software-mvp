@@ -18,20 +18,24 @@ export async function POST(request) {
       return jsonError("請選擇匯出類型");
     }
 
-    const exportFile = await generateExportFile({
-      company,
-      period,
-      payload: { exportType }
-    });
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "exportFile",
-      entityId: exportFile.id,
-      action: "GENERATE",
-      afterValue: exportFile,
-      request
+    const exportFile = await prisma.$transaction(async (tx) => {
+      const generatedExport = await generateExportFile({
+        company,
+        period,
+        payload: { exportType },
+        db: tx
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "exportFile",
+        entityId: generatedExport.id,
+        action: "GENERATE",
+        afterValue: generatedExport,
+        request,
+        db: tx
+      });
+      return generatedExport;
     });
     return NextResponse.json({ ok: true, exportFile });
   } catch (error) {

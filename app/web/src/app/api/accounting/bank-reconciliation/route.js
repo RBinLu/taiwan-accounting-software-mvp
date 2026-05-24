@@ -17,24 +17,25 @@ export async function POST(request) {
       return jsonError("未知的銀行對帳操作");
     }
 
-    const result = await prisma.$transaction((tx) =>
-      lockBankReconciliation({
+    const result = await prisma.$transaction(async (tx) => {
+      const reconciliationResult = await lockBankReconciliation({
         company,
         period,
         bankAccount,
         payload,
         db: tx
-      })
-    );
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "bankReconciliation",
-      entityId: result.reconciliation.id,
-      action: "LOCK",
-      afterValue: result.reconciliation,
-      request
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "bankReconciliation",
+        entityId: reconciliationResult.reconciliation.id,
+        action: "LOCK",
+        afterValue: reconciliationResult.reconciliation,
+        request,
+        db: tx
+      });
+      return reconciliationResult;
     });
 
     return NextResponse.json({ ok: true, ...result });

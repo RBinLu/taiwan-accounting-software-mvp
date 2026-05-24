@@ -1,4 +1,5 @@
-import { prisma } from "./prisma";
+import crypto from "node:crypto";
+import { prisma } from "./prisma.js";
 
 export class AccountingError extends Error {
   constructor(message, status = 400) {
@@ -26,6 +27,50 @@ export function moneyValue(value) {
 export function dateValue(value) {
   const text = textValue(value);
   return text ? new Date(`${text}T00:00:00+08:00`) : new Date();
+}
+
+async function lockInvoiceRecord(companyId, periodId, invoiceId, db) {
+  if (!invoiceId || typeof db.$queryRaw !== "function") return;
+
+  await db.$queryRaw`
+    SELECT "id"
+    FROM "InvoiceRecord"
+    WHERE "id" = ${invoiceId}
+      AND "companyId" = ${companyId}
+      AND "periodId" = ${periodId}
+    FOR UPDATE
+  `;
+}
+
+async function lockBankTransaction(companyId, transactionId, db) {
+  if (!transactionId || typeof db.$queryRaw !== "function") return;
+
+  await db.$queryRaw`
+    SELECT bt."id"
+    FROM "BankTransaction" bt
+    INNER JOIN "BankAccount" ba ON ba."id" = bt."bankAccountId"
+    WHERE bt."id" = ${transactionId}
+      AND ba."companyId" = ${companyId}
+    FOR UPDATE OF bt
+  `;
+}
+
+async function lockJournalEntry(companyId, journalEntryId, db) {
+  if (!journalEntryId || typeof db.$queryRaw !== "function") return;
+
+  await db.$queryRaw`
+    SELECT "id"
+    FROM "JournalEntry"
+    WHERE "id" = ${journalEntryId}
+      AND "companyId" = ${companyId}
+    FOR UPDATE
+  `;
+}
+
+function generatedEntryNo(prefix) {
+  const stamp = Date.now().toString(36).toUpperCase();
+  const suffix = crypto.randomBytes(3).toString("hex").toUpperCase();
+  return `${prefix}-${stamp}-${suffix}`;
 }
 
 export function periodDateRange(period) {
@@ -166,7 +211,7 @@ export async function createBalancedJournalEntry({ company, period, payload, db 
 
   const { lines } = await resolveBalancedJournalLines(company.id, payload, db);
   const entryPrefix = textValue(payload.entryPrefix) || "JV";
-  const entryNo = textValue(payload.entryNo) || `${entryPrefix}-${Date.now()}`;
+  const entryNo = textValue(payload.entryNo) || generatedEntryNo(entryPrefix);
 
   return db.journalEntry.create({
     data: {
@@ -316,6 +361,8 @@ export async function settleInvoice({
   assertPeriodOpen(period);
 
   const invoiceId = textValue(payload.invoiceId);
+  await lockInvoiceRecord(company.id, period.id, invoiceId, db);
+
   const invoice = await db.invoiceRecord.findFirst({
     where: {
       id: invoiceId,
@@ -466,6 +513,7 @@ export async function matchBankTransaction({
     throw new AccountingError("請輸入要匹配的傳票號碼");
   }
 
+  await lockBankTransaction(company.id, transactionId, db);
   const transaction = await findBankTransaction(company.id, transactionId, db);
 
   if (transaction.status === "RECONCILED") {
@@ -492,6 +540,7 @@ export async function matchBankTransaction({
     throw new AccountingError("找不到本期已過帳傳票", 404);
   }
 
+  await lockJournalEntry(company.id, journalEntry.id, db);
   const duplicateMatch = await db.bankTransaction.findFirst({
     where: {
       matchedJournalEntryId: journalEntry.id,
@@ -543,6 +592,7 @@ export async function unmatchBankTransaction({
     throw new AccountingError("缺少銀行交易 ID");
   }
 
+  await lockBankTransaction(company.id, transactionId, db);
   const transaction = await findBankTransaction(company.id, transactionId, db);
 
   if (transaction.status === "RECONCILED") {
@@ -575,6 +625,7 @@ export async function reconcileBankTransaction({
     throw new AccountingError("缺少銀行交易 ID");
   }
 
+  await lockBankTransaction(company.id, transactionId, db);
   const transaction = await findBankTransaction(company.id, transactionId, db);
 
   if (transaction.status === "RECONCILED") {
@@ -723,13 +774,13 @@ export function summarizeEntryLines(lines) {
   };
 }
 
-export async function getTrialBalance(companyId, periodId) {
+export async function getTrialBalance(companyId, periodId, db = prisma) {
   const [accounts, lines] = await Promise.all([
-    prisma.account.findMany({
+    db.account.findMany({
       where: { companyId },
       orderBy: { code: "asc" }
     }),
-    prisma.journalLine.findMany({
+    db.journalLine.findMany({
       where: {
         journalEntry: {
           companyId,

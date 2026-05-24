@@ -12,45 +12,47 @@ export async function POST(request) {
       roles: rolesForApi("invoice:payment")
     });
 
-    const result = await prisma.$transaction((tx) =>
-      settleInvoice({
+    const result = await prisma.$transaction(async (tx) => {
+      const paymentResult = await settleInvoice({
         company,
         period,
         bankAccount,
         payload,
         db: tx
-      })
-    );
+      });
 
-    await Promise.all([
-      writeAudit({
+      await writeAudit({
         companyId: company.id,
         userId: user.id,
         entityType: "invoice",
-        entityId: result.invoice.id,
+        entityId: paymentResult.invoice.id,
         action: "SETTLE",
-        afterValue: result.invoice,
-        request
-      }),
-      writeAudit({
+        afterValue: paymentResult.invoice,
+        request,
+        db: tx
+      });
+      await writeAudit({
         companyId: company.id,
         userId: user.id,
         entityType: "journal",
-        entityId: result.journalEntry.id,
+        entityId: paymentResult.journalEntry.id,
         action: "AUTO_CREATE",
-        afterValue: result.journalEntry,
-        request
-      }),
-      writeAudit({
+        afterValue: paymentResult.journalEntry,
+        request,
+        db: tx
+      });
+      await writeAudit({
         companyId: company.id,
         userId: user.id,
         entityType: "bankTransaction",
-        entityId: result.bankTransaction.id,
+        entityId: paymentResult.bankTransaction.id,
         action: "MATCH",
-        afterValue: result.bankTransaction,
-        request
-      })
-    ]);
+        afterValue: paymentResult.bankTransaction,
+        request,
+        db: tx
+      });
+      return paymentResult;
+    });
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

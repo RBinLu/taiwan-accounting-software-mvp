@@ -11,18 +11,23 @@ export async function POST(request) {
       roles: rolesForApi("fixed-assets:depreciate")
     });
 
-    const result = await prisma.$transaction((tx) =>
-      runFixedAssetDepreciation({ company, period, db: tx })
-    );
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "fixedAssetDepreciation",
-      entityId: period.id,
-      action: "RUN",
-      afterValue: { count: result.count },
-      request
+    const result = await prisma.$transaction(async (tx) => {
+      const depreciationResult = await runFixedAssetDepreciation({
+        company,
+        period,
+        db: tx
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "fixedAssetDepreciation",
+        entityId: period.id,
+        action: "RUN",
+        afterValue: { count: depreciationResult.count },
+        request,
+        db: tx
+      });
+      return depreciationResult;
     });
 
     return NextResponse.json({ ok: true, ...result });

@@ -50,19 +50,23 @@ export async function POST(request) {
         );
       }
 
-      const posted = await prisma.journalEntry.update({
-        where: { id: entry.id },
-        data: { status: "POSTED" }
-      });
-      await writeAudit({
-        companyId: company.id,
-        userId: user.id,
-        entityType: "journalEntry",
-        entityId: entry.id,
-        action: "POST",
-        beforeValue: entry,
-        afterValue: posted,
-        request
+      const posted = await prisma.$transaction(async (tx) => {
+        const postedEntry = await tx.journalEntry.update({
+          where: { id: entry.id },
+          data: { status: "POSTED" }
+        });
+        await writeAudit({
+          companyId: company.id,
+          userId: user.id,
+          entityType: "journalEntry",
+          entityId: entry.id,
+          action: "POST",
+          beforeValue: entry,
+          afterValue: postedEntry,
+          request,
+          db: tx
+        });
+        return postedEntry;
       });
       return NextResponse.json({ ok: true, record: posted });
     }
@@ -71,19 +75,23 @@ export async function POST(request) {
       return jsonError("只有已過帳分錄可以作廢");
     }
 
-    const voided = await prisma.journalEntry.update({
-      where: { id: entry.id },
-      data: { status: "VOID" }
-    });
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "journalEntry",
-      entityId: entry.id,
-      action: "VOID",
-      beforeValue: entry,
-      afterValue: voided,
-      request
+    const voided = await prisma.$transaction(async (tx) => {
+      const voidedEntry = await tx.journalEntry.update({
+        where: { id: entry.id },
+        data: { status: "VOID" }
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "journalEntry",
+        entityId: entry.id,
+        action: "VOID",
+        beforeValue: entry,
+        afterValue: voidedEntry,
+        request,
+        db: tx
+      });
+      return voidedEntry;
     });
     return NextResponse.json({ ok: true, record: voided });
   } catch (error) {

@@ -19,33 +19,42 @@ export async function POST(request) {
 
     let result;
     if (action === "rebuild") {
-      result = await prisma.$transaction((tx) =>
-        rebuildTaxSummary({ company, period, db: tx })
-      );
-      await writeAudit({
-        companyId: company.id,
-        userId: user.id,
-        entityType: "taxRecord",
-        entityId: result.taxRecord.id,
-        action: "REBUILD",
-        afterValue: result.taxRecord,
-        request
+      result = await prisma.$transaction(async (tx) => {
+        const taxResult = await rebuildTaxSummary({ company, period, db: tx });
+        await writeAudit({
+          companyId: company.id,
+          userId: user.id,
+          entityType: "taxRecord",
+          entityId: taxResult.taxRecord.id,
+          action: "REBUILD",
+          afterValue: taxResult.taxRecord,
+          request,
+          db: tx
+        });
+        return taxResult;
       });
       return NextResponse.json({ ok: true, ...result });
     }
 
     if (["review", "file"].includes(action)) {
-      result = await prisma.$transaction((tx) =>
-        updateTaxFilingStatus({ company, period, action, db: tx })
-      );
-      await writeAudit({
-        companyId: company.id,
-        userId: user.id,
-        entityType: "taxRecord",
-        entityId: result.taxRecord.id,
-        action: action === "review" ? "REVIEW" : "FILE",
-        afterValue: result.taxRecord,
-        request
+      result = await prisma.$transaction(async (tx) => {
+        const taxResult = await updateTaxFilingStatus({
+          company,
+          period,
+          action,
+          db: tx
+        });
+        await writeAudit({
+          companyId: company.id,
+          userId: user.id,
+          entityType: "taxRecord",
+          entityId: taxResult.taxRecord.id,
+          action: action === "review" ? "REVIEW" : "FILE",
+          afterValue: taxResult.taxRecord,
+          request,
+          db: tx
+        });
+        return taxResult;
       });
       return NextResponse.json({ ok: true, ...result });
     }

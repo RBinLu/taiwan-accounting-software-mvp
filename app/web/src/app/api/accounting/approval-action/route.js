@@ -30,22 +30,25 @@ export async function POST(request) {
       return jsonError("只有待審核項目可以操作");
     }
 
-    const updated = await prisma.approvalRequest.update({
-      where: { id: approval.id },
-      data: {
-        status: action === "approve" ? "APPROVED" : "REJECTED"
-      }
-    });
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "approvalRequest",
-      entityId: updated.id,
-      action: action === "approve" ? "APPROVE" : "REJECT",
-      beforeValue: approval,
-      afterValue: updated,
-      request
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedApproval = await tx.approvalRequest.update({
+        where: { id: approval.id },
+        data: {
+          status: action === "approve" ? "APPROVED" : "REJECTED"
+        }
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "approvalRequest",
+        entityId: updatedApproval.id,
+        action: action === "approve" ? "APPROVE" : "REJECT",
+        beforeValue: approval,
+        afterValue: updatedApproval,
+        request,
+        db: tx
+      });
+      return updatedApproval;
     });
     return NextResponse.json({ ok: true, approval: updated });
   } catch (error) {

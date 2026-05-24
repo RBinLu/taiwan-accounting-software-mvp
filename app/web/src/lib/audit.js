@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { prisma } from "./prisma";
-import { requestMeta } from "./security";
+import { prisma } from "./prisma.js";
+import { requestMeta } from "./security.js";
 
 function jsonSafe(value) {
   if (value === undefined) return null;

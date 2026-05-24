@@ -1,16 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import crypto from "node:crypto";
 import path from "node:path";
 import {
   AccountingError,
   getTrialBalance,
   periodDateRange,
   textValue
-} from "./accounting-core";
-import { prisma } from "./prisma";
+} from "./accounting-core.js";
+import { prisma } from "./prisma.js";
+import { assertInsideWorkspace, exportsDir, workspaceRoot } from "./project-paths.js";
 
 function workspacePath(relativePath) {
-  const workspaceRoot = process.env.ACCOUNTING_WORKSPACE_ROOT || process.cwd();
-  return path.join(/* turbopackIgnore: true */ workspaceRoot, relativePath);
+  const absolutePath = path.join(/* turbopackIgnore: true */ workspaceRoot, relativePath);
+  return assertInsideWorkspace(absolutePath, "export path");
 }
 
 function csvCell(value) {
@@ -28,7 +30,7 @@ function csvRows(rows) {
 async function exportRows(company, period, exportType, db) {
   switch (exportType) {
     case "trial-balance": {
-      const trialBalance = await getTrialBalance(company.id, period.id);
+      const trialBalance = await getTrialBalance(company.id, period.id, db);
       return [
         ["科目代碼", "科目名稱", "類型", "借方發生", "貸方發生", "期末借方", "期末貸方"],
         ...trialBalance.rows.map((row) => [
@@ -235,8 +237,9 @@ export async function generateExportFile({
 }) {
   const exportType = textValue(payload.exportType);
   const rows = await exportRows(company, period, exportType, db);
-  const fileName = `${period.taxPeriod}-${exportType}-${Date.now()}.csv`;
-  const relativePath = path.join("storage", "exports", fileName);
+  const suffix = crypto.randomBytes(3).toString("hex");
+  const fileName = `${period.taxPeriod}-${exportType}-${Date.now()}-${suffix}.csv`;
+  const relativePath = path.relative(workspaceRoot, path.join(exportsDir, fileName));
   const absolutePath = workspacePath(relativePath);
 
   await mkdir(path.dirname(absolutePath), { recursive: true });

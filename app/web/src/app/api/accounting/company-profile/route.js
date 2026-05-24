@@ -61,21 +61,24 @@ export async function PATCH(request) {
     }
 
     const beforeValue = companySnapshot(company);
-    const updatedCompany = await prisma.company.update({
-      where: { id: company.id },
-      data: nextData
-    });
-    const afterValue = companySnapshot(updatedCompany);
-
-    await writeAudit({
-      companyId: updatedCompany.id,
-      userId: user.id,
-      entityType: "company",
-      entityId: updatedCompany.id,
-      action: "UPDATE_COMPANY_PROFILE",
-      beforeValue,
-      afterValue,
-      request
+    const afterValue = await prisma.$transaction(async (tx) => {
+      const updatedCompany = await tx.company.update({
+        where: { id: company.id },
+        data: nextData
+      });
+      const snapshot = companySnapshot(updatedCompany);
+      await writeAudit({
+        companyId: updatedCompany.id,
+        userId: user.id,
+        entityType: "company",
+        entityId: updatedCompany.id,
+        action: "UPDATE_COMPANY_PROFILE",
+        beforeValue,
+        afterValue: snapshot,
+        request,
+        db: tx
+      });
+      return snapshot;
     });
 
     return NextResponse.json({ ok: true, company: afterValue });

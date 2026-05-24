@@ -46,40 +46,42 @@ export async function POST(request) {
       lockedUntil: membership.user.lockedUntil
     };
 
-    const updatedUser = await prisma.user.update({
-      where: { id: membership.userId },
-      data: {
-        passwordHash: hashPassword(temporaryPassword),
-        mustChangePassword: true,
-        failedLoginCount: 0,
-        lockedUntil: null,
-        lastPasswordChangedAt: null,
-        isActive: true
-      }
-    });
-
-    await prisma.authSession.updateMany({
-      where: {
-        userId: membership.userId,
-        revokedAt: null
-      },
-      data: { revokedAt: new Date() }
-    });
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "user",
-      entityId: updatedUser.id,
-      action: "PASSWORD_RESET",
-      beforeValue,
-      afterValue: {
-        userId: updatedUser.id,
-        email: updatedUser.email,
-        mustChangePassword: updatedUser.mustChangePassword,
-        isActive: updatedUser.isActive
-      },
-      request
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const nextUser = await tx.user.update({
+        where: { id: membership.userId },
+        data: {
+          passwordHash: hashPassword(temporaryPassword),
+          mustChangePassword: true,
+          failedLoginCount: 0,
+          lockedUntil: null,
+          lastPasswordChangedAt: null,
+          isActive: true
+        }
+      });
+      await tx.authSession.updateMany({
+        where: {
+          userId: membership.userId,
+          revokedAt: null
+        },
+        data: { revokedAt: new Date() }
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "user",
+        entityId: nextUser.id,
+        action: "PASSWORD_RESET",
+        beforeValue,
+        afterValue: {
+          userId: nextUser.id,
+          email: nextUser.email,
+          mustChangePassword: nextUser.mustChangePassword,
+          isActive: nextUser.isActive
+        },
+        request,
+        db: tx
+      });
+      return nextUser;
     });
 
     return NextResponse.json({

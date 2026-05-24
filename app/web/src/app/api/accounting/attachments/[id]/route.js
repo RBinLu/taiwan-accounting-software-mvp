@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
     if (!attachment) return jsonError("找不到附件", 404);
 
     const absolutePath = assertInsideWorkspace(
-      path.join(workspaceRoot, attachment.storagePath),
+      path.join(/* turbopackIgnore: true */ workspaceRoot, attachment.storagePath),
       "attachment path"
     );
     const bytes = await fs.readFile(absolutePath);

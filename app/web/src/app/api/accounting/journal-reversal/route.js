@@ -12,30 +12,35 @@ export async function POST(request) {
       roles: rolesForApi("journal:reversal")
     });
 
-    const result = await prisma.$transaction((tx) =>
-      reverseJournalEntry({ company, period, payload, db: tx })
-    );
-
-    await Promise.all([
-      writeAudit({
+    const result = await prisma.$transaction(async (tx) => {
+      const reversalResult = await reverseJournalEntry({
+        company,
+        period,
+        payload,
+        db: tx
+      });
+      await writeAudit({
         companyId: company.id,
         userId: user.id,
         entityType: "journalEntry",
-        entityId: result.original.id,
+        entityId: reversalResult.original.id,
         action: "MARK_REVERSED",
-        afterValue: result.original,
-        request
-      }),
-      writeAudit({
+        afterValue: reversalResult.original,
+        request,
+        db: tx
+      });
+      await writeAudit({
         companyId: company.id,
         userId: user.id,
         entityType: "journalEntry",
-        entityId: result.reversal.id,
+        entityId: reversalResult.reversal.id,
         action: "REVERSAL_CREATE",
-        afterValue: result.reversal,
-        request
-      })
-    ]);
+        afterValue: reversalResult.reversal,
+        request,
+        db: tx
+      });
+      return reversalResult;
+    });
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

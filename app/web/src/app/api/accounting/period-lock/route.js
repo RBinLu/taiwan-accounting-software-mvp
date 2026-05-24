@@ -26,46 +26,52 @@ export async function POST(request) {
         );
       }
 
-      const lockedPeriod = await prisma.accountingPeriod.update({
+      const lockedPeriod = await prisma.$transaction(async (tx) => {
+        const updatedPeriod = await tx.accountingPeriod.update({
+          where: { id: period.id },
+          data: {
+            isLocked: true,
+            lockedAt: new Date(),
+            lockedByUserId: user.id
+          }
+        });
+        await writeAudit({
+          companyId: company.id,
+          userId: user.id,
+          entityType: "accountingPeriod",
+          entityId: period.id,
+          action: "LOCK",
+          beforeValue: period,
+          afterValue: updatedPeriod,
+          request,
+          db: tx
+        });
+        return updatedPeriod;
+      });
+      return NextResponse.json({ ok: true, period: lockedPeriod });
+    }
+
+    const unlockedPeriod = await prisma.$transaction(async (tx) => {
+      const updatedPeriod = await tx.accountingPeriod.update({
         where: { id: period.id },
         data: {
-          isLocked: true,
-          lockedAt: new Date(),
-          lockedByUserId: user.id
+          isLocked: false,
+          lockedAt: null,
+          lockedByUserId: null
         }
       });
-
       await writeAudit({
         companyId: company.id,
         userId: user.id,
         entityType: "accountingPeriod",
         entityId: period.id,
-        action: "LOCK",
+        action: "UNLOCK",
         beforeValue: period,
-        afterValue: lockedPeriod,
-        request
+        afterValue: updatedPeriod,
+        request,
+        db: tx
       });
-      return NextResponse.json({ ok: true, period: lockedPeriod });
-    }
-
-    const unlockedPeriod = await prisma.accountingPeriod.update({
-      where: { id: period.id },
-      data: {
-        isLocked: false,
-        lockedAt: null,
-        lockedByUserId: null
-      }
-    });
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "accountingPeriod",
-      entityId: period.id,
-      action: "UNLOCK",
-      beforeValue: period,
-      afterValue: unlockedPeriod,
-      request
+      return updatedPeriod;
     });
     return NextResponse.json({ ok: true, period: unlockedPeriod });
   } catch (error) {

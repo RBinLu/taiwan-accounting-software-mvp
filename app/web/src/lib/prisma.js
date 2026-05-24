@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { assertDatabaseIsolation } from "./project-paths";
+import { assertDatabaseIsolation } from "./project-paths.js";
 
 assertDatabaseIsolation();
 

@@ -1,11 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const root = process.cwd();
-const expectedRoot = "/Users/rbin/Documents/Codex/會計軟體";
+const root = path.resolve(process.cwd());
+const packageJson = JSON.parse(
+  await fs.readFile(path.join(root, "package.json"), "utf8")
+);
 
-if (path.resolve(root) !== expectedRoot) {
-  throw new Error(`Run this script from ${expectedRoot}. Current cwd: ${root}`);
+if (packageJson.name !== "taiwan-accounting-ocr-platform") {
+  throw new Error(`Run this script from the project root. Current cwd: ${root}`);
 }
 
 const dirs = [

@@ -2,8 +2,8 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { prisma } from "./prisma";
-import { assertInsideWorkspace, workspaceRoot } from "./project-paths";
+import { prisma } from "./prisma.js";
+import { assertInsideWorkspace, workspaceRoot } from "./project-paths.js";
 
 const execFileAsync = promisify(execFile);
 const OCR_PYTHON =
@@ -997,7 +997,7 @@ export async function runOcrValidation({ jobId, db = prisma }) {
 
   const document = job.document;
   const absolutePath = assertInsideWorkspace(
-    path.join(workspaceRoot, document.storagePath),
+    path.join(/* turbopackIgnore: true */ workspaceRoot, document.storagePath),
     "document storage path"
   );
   const startedAt = new Date();

@@ -1,5 +1,5 @@
-import { prisma } from "./prisma";
-import { ensureBootstrapAdmin, requireCompanyRole } from "./auth";
+import { prisma } from "./prisma.js";
+import { ensureBootstrapAdmin, requireCompanyRole } from "./auth.js";
 
 const DEFAULT_COMPANY_PROFILE = {
   taxId: process.env.ACCOUNTING_DEFAULT_COMPANY_TAX_ID || "00000000",

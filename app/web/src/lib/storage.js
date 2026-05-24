@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { assertInsideWorkspace, exportsDir, uploadsDir } from "./project-paths";
+import { assertInsideWorkspace, exportsDir, uploadsDir } from "./project-paths.js";
 
 export async function ensureStorageDirs() {
   assertInsideWorkspace(uploadsDir, "uploadsDir");

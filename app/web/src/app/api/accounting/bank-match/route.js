@@ -29,25 +29,26 @@ export async function POST(request) {
       return jsonError("未知的銀行對帳操作");
     }
 
-    const transaction = await prisma.$transaction((tx) =>
-      handler({
+    const auditAction =
+      action === "match" ? "MATCH" : action === "unmatch" ? "UNMATCH" : "RECONCILE";
+    const transaction = await prisma.$transaction(async (tx) => {
+      const updatedTransaction = await handler({
         company,
         period,
         payload,
         db: tx
-      })
-    );
-
-    const auditAction =
-      action === "match" ? "MATCH" : action === "unmatch" ? "UNMATCH" : "RECONCILE";
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "bankTransaction",
-      entityId: transaction.id,
-      action: auditAction,
-      afterValue: transaction,
-      request
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "bankTransaction",
+        entityId: updatedTransaction.id,
+        action: auditAction,
+        afterValue: updatedTransaction,
+        request,
+        db: tx
+      });
+      return updatedTransaction;
     });
 
     return NextResponse.json({ ok: true, transaction });

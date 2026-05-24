@@ -7,13 +7,13 @@ import {
   moneyValue,
   periodDateRange,
   textValue
-} from "./accounting-core";
+} from "./accounting-core.js";
 import {
   generateFinancialStatements,
   rebuildTaxSummary,
   updateTaxFilingStatus
-} from "./commercial-accounting";
-import { prisma } from "./prisma";
+} from "./commercial-accounting.js";
+import { prisma } from "./prisma.js";
 
 function periodEndDate(period) {
   return periodDateRange(period).end;
@@ -25,6 +25,18 @@ function decimal4(value) {
     throw new AccountingError("數量格式不正確");
   }
   return Math.round(number * 10000) / 10000;
+}
+
+async function lockInventoryItem(companyId, itemId, db) {
+  if (!itemId || typeof db.$queryRaw !== "function") return;
+
+  await db.$queryRaw`
+    SELECT "id"
+    FROM "InventoryItem"
+    WHERE "id" = ${itemId}
+      AND "companyId" = ${companyId}
+    FOR UPDATE
+  `;
 }
 
 function journalDateForPeriod(period) {
@@ -115,36 +127,42 @@ export async function createFixedAsset({
     throw new AccountingError("殘值必須小於取得成本");
   }
 
-  const asset = await db.fixedAsset.upsert({
+  const existingAsset = await db.fixedAsset.findUnique({
     where: {
       companyId_assetNo: {
         companyId: company.id,
         assetNo
       }
-    },
-    create: {
+    }
+  });
+  const assetData = {
+    name,
+    acquisitionDate: dateValue(payload.acquisitionDate),
+    acquisitionCost,
+    salvageValue,
+    usefulLifeMonths,
+    depreciationAccountCode: textValue(payload.depreciationAccountCode) || "6170",
+    accumulatedDepreciationAccountCode:
+      textValue(payload.accumulatedDepreciationAccountCode) || "1230"
+  };
+
+  if (existingAsset) {
+    const asset = await db.fixedAsset.update({
+      where: { id: existingAsset.id },
+      data: {
+        ...assetData,
+        status: "ACTIVE"
+      }
+    });
+    return { asset, journalEntry: null, created: false, beforeValue: existingAsset };
+  }
+
+  const asset = await db.fixedAsset.create({
+    data: {
       companyId: company.id,
       periodId: period.id,
       assetNo,
-      name,
-      acquisitionDate: dateValue(payload.acquisitionDate),
-      acquisitionCost,
-      salvageValue,
-      usefulLifeMonths,
-      depreciationAccountCode: textValue(payload.depreciationAccountCode) || "6170",
-      accumulatedDepreciationAccountCode:
-        textValue(payload.accumulatedDepreciationAccountCode) || "1230"
-    },
-    update: {
-      name,
-      acquisitionDate: dateValue(payload.acquisitionDate),
-      acquisitionCost,
-      salvageValue,
-      usefulLifeMonths,
-      depreciationAccountCode: textValue(payload.depreciationAccountCode) || "6170",
-      accumulatedDepreciationAccountCode:
-        textValue(payload.accumulatedDepreciationAccountCode) || "1230",
-      status: "ACTIVE"
+      ...assetData
     }
   });
 
@@ -170,7 +188,7 @@ export async function createFixedAsset({
     }
   });
 
-  return { asset, journalEntry };
+  return { asset, journalEntry, created: true, beforeValue: null };
 }
 
 export async function runFixedAssetDepreciation({
@@ -277,7 +295,7 @@ export async function recordInventoryTransaction({
   }
   if (quantity <= 0) throw new AccountingError("數量必須大於零");
 
-  const item = await db.inventoryItem.upsert({
+  let item = await db.inventoryItem.upsert({
     where: {
       companyId_sku: {
         companyId: company.id,
@@ -298,6 +316,17 @@ export async function recordInventoryTransaction({
       isActive: true
     }
   });
+  await lockInventoryItem(company.id, item.id, db);
+  item = await db.inventoryItem.findFirst({
+    where: {
+      id: item.id,
+      companyId: company.id
+    }
+  });
+
+  if (!item) {
+    throw new AccountingError("找不到存貨品項", 404);
+  }
 
   const currentQty = decimal4(item.quantityOnHand);
   const currentAvg = decimal4(item.averageCost);
@@ -595,7 +624,7 @@ export async function runBatchDiagnostics({
   });
 
   try {
-    const trialBalance = await getTrialBalance(company.id, period.id);
+    const trialBalance = await getTrialBalance(company.id, period.id, db);
     const { start, end } = periodDateRange(period);
     const [bankAccount, taxRecord, financialLineCount, failedExports] =
       await Promise.all([

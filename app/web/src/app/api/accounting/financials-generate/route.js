@@ -10,18 +10,23 @@ export async function POST(request) {
     const { company, period, user } = await requireApiAccess(request, {
       roles: rolesForApi("financials:generate")
     });
-    const result = await prisma.$transaction((tx) =>
-      generateFinancialStatements({ company, period, db: tx })
-    );
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "financialStatement",
-      entityId: period.id,
-      action: "GENERATE",
-      afterValue: result.summary,
-      request
+    const result = await prisma.$transaction(async (tx) => {
+      const financialResult = await generateFinancialStatements({
+        company,
+        period,
+        db: tx
+      });
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "financialStatement",
+        entityId: period.id,
+        action: "GENERATE",
+        afterValue: financialResult.summary,
+        request,
+        db: tx
+      });
+      return financialResult;
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

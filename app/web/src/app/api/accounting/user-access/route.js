@@ -67,43 +67,44 @@ export async function PATCH(request) {
       }
     };
 
-    const [updatedMembership, updatedUser] = await prisma.$transaction([
-      prisma.companyUser.update({
+    const { updatedMembership, updatedUser } = await prisma.$transaction(async (tx) => {
+      const nextMembership = await tx.companyUser.update({
         where: { id: membership.id },
         data: { role: nextRole || membership.role }
-      }),
-      nextIsActive === null
-        ? prisma.user.findUnique({ where: { id: membership.userId } })
-        : prisma.user.update({
-            where: { id: membership.userId },
-            data: {
-              isActive: nextIsActive,
-              lockedUntil: nextIsActive ? null : membership.user.lockedUntil
-            }
-          })
-    ]);
-
-    const afterValue = {
-      membership: {
-        id: updatedMembership.id,
-        role: updatedMembership.role
-      },
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        isActive: updatedUser.isActive
-      }
-    };
-
-    await writeAudit({
-      companyId: company.id,
-      userId: user.id,
-      entityType: "companyUser",
-      entityId: membership.id,
-      action: "UPDATE_ACCESS",
-      beforeValue,
-      afterValue,
-      request
+      });
+      const nextUser =
+        nextIsActive === null
+          ? await tx.user.findUnique({ where: { id: membership.userId } })
+          : await tx.user.update({
+              where: { id: membership.userId },
+              data: {
+                isActive: nextIsActive,
+                lockedUntil: nextIsActive ? null : membership.user.lockedUntil
+              }
+            });
+      const afterValue = {
+        membership: {
+          id: nextMembership.id,
+          role: nextMembership.role
+        },
+        user: {
+          id: nextUser.id,
+          email: nextUser.email,
+          isActive: nextUser.isActive
+        }
+      };
+      await writeAudit({
+        companyId: company.id,
+        userId: user.id,
+        entityType: "companyUser",
+        entityId: membership.id,
+        action: "UPDATE_ACCESS",
+        beforeValue,
+        afterValue,
+        request,
+        db: tx
+      });
+      return { updatedMembership: nextMembership, updatedUser: nextUser };
     });
 
     return NextResponse.json({
