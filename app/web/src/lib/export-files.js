@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import crypto from "node:crypto";
 import path from "node:path";
 import {
@@ -229,7 +229,7 @@ async function exportRows(company, period, exportType, db) {
   }
 }
 
-export async function generateExportFile({
+export async function buildExportFile({
   company,
   period,
   payload,
@@ -242,16 +242,58 @@ export async function generateExportFile({
   const relativePath = path.relative(workspaceRoot, path.join(exportsDir, fileName));
   const absolutePath = workspacePath(relativePath);
 
-  await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, csvRows(rows), "utf8");
+  return {
+    exportType,
+    relativePath,
+    absolutePath,
+    content: csvRows(rows)
+  };
+}
 
+export async function writeExportFile(preparedExport) {
+  await mkdir(path.dirname(preparedExport.absolutePath), { recursive: true });
+  await writeFile(preparedExport.absolutePath, preparedExport.content, "utf8");
+}
+
+export async function removeExportFile(preparedExport) {
+  await rm(preparedExport.absolutePath, { force: true });
+}
+
+export async function createExportFileRecord({
+  company,
+  period,
+  preparedExport,
+  db = prisma
+}) {
   return db.exportFile.create({
     data: {
       companyId: company.id,
       periodId: period.id,
-      exportType,
+      exportType: preparedExport.exportType,
       status: "GENERATED",
-      storagePath: relativePath
+      storagePath: preparedExport.relativePath
     }
   });
+}
+
+export async function generateExportFile({
+  company,
+  period,
+  payload,
+  db = prisma
+}) {
+  const preparedExport = await buildExportFile({ company, period, payload, db });
+  await writeExportFile(preparedExport);
+
+  try {
+    return await createExportFileRecord({
+      company,
+      period,
+      preparedExport,
+      db
+    });
+  } catch (error) {
+    await removeExportFile(preparedExport);
+    throw error;
+  }
 }

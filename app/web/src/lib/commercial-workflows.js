@@ -27,6 +27,17 @@ function decimal4(value) {
   return Math.round(number * 10000) / 10000;
 }
 
+function sameDay(left, right) {
+  const leftDate = left instanceof Date ? left : dateValue(left);
+  const rightDate = right instanceof Date ? right : dateValue(right);
+  return leftDate.toISOString().slice(0, 10) ===
+    rightDate.toISOString().slice(0, 10);
+}
+
+function isUniqueConstraintError(error) {
+  return error?.code === "P2002";
+}
+
 async function lockInventoryItem(companyId, itemId, db) {
   if (!itemId || typeof db.$queryRaw !== "function") return;
 
@@ -41,6 +52,34 @@ async function lockInventoryItem(companyId, itemId, db) {
 
 function journalDateForPeriod(period) {
   return `${period.year}-${String(period.month).padStart(2, "0")}-01`;
+}
+
+async function updateExistingFixedAsset({ existingAsset, assetData, db }) {
+  const sameBookBasis =
+    sameDay(existingAsset.acquisitionDate, assetData.acquisitionDate) &&
+    moneyValue(existingAsset.acquisitionCost) === assetData.acquisitionCost &&
+    moneyValue(existingAsset.salvageValue) === assetData.salvageValue &&
+    Number(existingAsset.usefulLifeMonths) === assetData.usefulLifeMonths;
+
+  if (!sameBookBasis) {
+    throw new AccountingError(
+      "既有固定資產不能直接修改取得日、成本、殘值或耐用月數；請建立調整或沖銷分錄",
+      400
+    );
+  }
+
+  const asset = await db.fixedAsset.update({
+    where: { id: existingAsset.id },
+    data: {
+      name: assetData.name,
+      depreciationAccountCode: assetData.depreciationAccountCode,
+      accumulatedDepreciationAccountCode:
+        assetData.accumulatedDepreciationAccountCode,
+      status: "ACTIVE"
+    }
+  });
+
+  return { asset, journalEntry: null, created: false, beforeValue: existingAsset };
 }
 
 export async function reverseJournalEntry({
@@ -147,24 +186,43 @@ export async function createFixedAsset({
   };
 
   if (existingAsset) {
-    const asset = await db.fixedAsset.update({
-      where: { id: existingAsset.id },
-      data: {
-        ...assetData,
-        status: "ACTIVE"
-      }
+    return updateExistingFixedAsset({
+      existingAsset,
+      assetData,
+      db
     });
-    return { asset, journalEntry: null, created: false, beforeValue: existingAsset };
   }
 
-  const asset = await db.fixedAsset.create({
-    data: {
-      companyId: company.id,
-      periodId: period.id,
-      assetNo,
-      ...assetData
+  let asset;
+  try {
+    asset = await db.fixedAsset.create({
+      data: {
+        companyId: company.id,
+        periodId: period.id,
+        assetNo,
+        ...assetData
+      }
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
     }
-  });
+
+    const racedAsset = await db.fixedAsset.findUnique({
+      where: {
+        companyId_assetNo: {
+          companyId: company.id,
+          assetNo
+        }
+      }
+    });
+    if (!racedAsset) throw error;
+    return updateExistingFixedAsset({
+      existingAsset: racedAsset,
+      assetData,
+      db
+    });
+  }
 
   const journalEntry = await createBalancedJournalEntry({
     company,
