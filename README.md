@@ -14,6 +14,7 @@
 
 | 版本 | 日期 | GitHub 推送狀態 | 內容摘要 | 驗證 |
 | --- | --- | --- | --- | --- |
+| `v1.0.6` | 2026-05-25 | 已推送 | 修復已初始化 OWNER 管理員仍重新產生 bootstrap one-time password 狀態檔的問題；既有管理員只維持啟用，不再覆寫密碼或重開首次登入流程，並完成外部 Chrome session 的權限頁驗證。 | `npm run verify`、Chrome 外網 `/permissions` / `/audit` / `/company-settings` 驗證 |
 | `v1.0.5` | 2026-05-25 | 已推送 | 修復右上角設定 / 通知 hover 選單在按鈕與面板間移動時消失的 UX 問題；以延伸 `.topbar-tool` 互動區域處理，不改動既有視覺位置與樣式。 | `npm run lint`、`npm run test`、`npm run build`、Chrome 外網 hover bridge 驗證 |
 | `v1.0.4` | 2026-05-25 | 已推送 | 修復外部網域完整操作：production CSP 允許 Next hydration、表單改有原生 POST fallback 並修正 async submit reset 錯誤、ACCOUNTANT 只顯示授權入口且未授權頁導到 `/forbidden`、文件列表不再暴露 storage path、OCR 分流支援 PDF / JPG / CSV / XLSX 入庫與安全略過非 OCR 表格檔。未改動既有 UI/UX 視覺設定。 | `npm run lint`、`npm run test`、`npm run build`、Chrome 外網 JPG / PDF / XLSX / CSV 上傳、搜尋、權限與選單驗證 |
 | `v1.0.3` | 2026-05-25 | 已推送 | 推送目前工作區版本：補上 ACCTLY SaaS deck 交付檔、模組頁公司資訊欄位加寬以避免長公司名壓縮、期別鎖帳區塊加入完成度與更清楚的月結檢查狀態。 | `npm run test`、`npm run build` |

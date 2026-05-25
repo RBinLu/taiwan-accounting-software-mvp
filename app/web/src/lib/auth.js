@@ -135,30 +135,33 @@ export function verifyPassword(password, storedHash) {
 
 export async function ensureBootstrapAdmin(company, db = prisma) {
   const email = BOOTSTRAP_ADMIN_EMAIL;
-  const password = await getBootstrapPassword(email);
-  const user = await db.user.upsert({
-    where: { email },
-    create: {
-      email,
-      name: "系統管理者",
-      passwordHash: hashPassword(password),
-      mustChangePassword: true,
-      isActive: true,
-      lastPasswordChangedAt: null
-    },
-    update: {
-      isActive: true
-    }
-  });
-
-  const usesLegacyDefault =
-    user.passwordHash &&
+  const existingUser = await db.user.findUnique({ where: { email } });
+  const existingUsesLegacyDefault =
+    existingUser?.passwordHash &&
     LEGACY_DEFAULT_PASSWORDS.some((legacyPassword) =>
-      verifyPassword(legacyPassword, user.passwordHash)
+      verifyPassword(legacyPassword, existingUser.passwordHash)
     );
+  const needsBootstrapPassword =
+    !existingUser || !existingUser.passwordHash || existingUsesLegacyDefault;
+  const password = needsBootstrapPassword ? await getBootstrapPassword(email) : null;
+  let user = existingUser
+    ? await db.user.update({
+        where: { id: existingUser.id },
+        data: { isActive: true }
+      })
+    : await db.user.create({
+        data: {
+          email,
+          name: "系統管理者",
+          passwordHash: hashPassword(password),
+          mustChangePassword: true,
+          isActive: true,
+          lastPasswordChangedAt: null
+        }
+      });
 
-  if (!user.passwordHash || usesLegacyDefault) {
-    await db.user.update({
+  if (existingUser && needsBootstrapPassword) {
+    user = await db.user.update({
       where: { id: user.id },
       data: {
         passwordHash: hashPassword(password),
