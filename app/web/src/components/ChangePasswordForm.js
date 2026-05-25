@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { csrfHeaders } from "@/lib/client-security";
 
-export default function ChangePasswordForm({ email }) {
+export default function ChangePasswordForm({ email, csrfToken = "" }) {
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -18,7 +18,10 @@ export default function ChangePasswordForm({ email }) {
     try {
       const response = await fetch("/api/auth/change-password", {
         method: "POST",
-        headers: csrfHeaders({ "content-type": "application/json" }),
+        headers: csrfHeaders({
+          "content-type": "application/json",
+          "x-acctly-fetch": "1"
+        }),
         body: JSON.stringify(payload)
       });
       const body = await response.json();
@@ -38,7 +41,13 @@ export default function ChangePasswordForm({ email }) {
   }
 
   return (
-    <form className="login-form" onSubmit={handleSubmit}>
+    <form
+      action="/api/auth/change-password"
+      className="login-form"
+      method="post"
+      onSubmit={handleSubmit}
+    >
+      <input name="csrfToken" type="hidden" value={csrfToken} />
       <label>
         <span>Email</span>
         <input value={email} disabled />

@@ -14,6 +14,8 @@ const TESSERACT_BIN =
 const TESSERACT_LANG =
   process.env.ACCOUNTING_TESSERACT_LANG || "chi_tra+eng+snum";
 const OCR_STORAGE_DIR = path.join(workspaceRoot, "storage", "ocr");
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".heic", ".heif", ".webp"]);
+const TABLE_EXTENSIONS = new Set([".csv", ".txt", ".tsv", ".xlsx", ".xls"]);
 const STATEMENT_OCR_PAGES = [
   { key: "incomeStatement", pageNumber: 3, label: "損益及稅額計算表" },
   { key: "balanceSheet", pageNumber: 5, label: "資產負債表" }
@@ -368,6 +370,28 @@ function isFinancialStatementDocument(documentType) {
   return ["BALANCE_SHEET", "INCOME_STATEMENT", "CASH_FLOW", "OTHER"].includes(documentType);
 }
 
+function documentExtension(document) {
+  return path.extname(document.originalName || document.storagePath || "").toLowerCase();
+}
+
+function isPdfDocument(document) {
+  return document.mimeType === "application/pdf" || documentExtension(document) === ".pdf";
+}
+
+function isImageDocument(document) {
+  return String(document.mimeType || "").startsWith("image/") || IMAGE_EXTENSIONS.has(documentExtension(document));
+}
+
+function isTableDocument(document) {
+  const mimeType = String(document.mimeType || "");
+  return (
+    TABLE_EXTENSIONS.has(documentExtension(document)) ||
+    mimeType.startsWith("text/") ||
+    mimeType === "application/vnd.ms-excel" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+}
+
 async function extractStatementPageImages(absolutePath, documentId) {
   const outputDir = assertInsideWorkspace(
     path.join(OCR_STORAGE_DIR, documentId),
@@ -400,6 +424,80 @@ async function runTesseract(imagePath) {
     { maxBuffer: 24 * 1024 * 1024, timeout: 90_000 }
   );
   return normalizeText(stdout);
+}
+
+async function parseImageDocumentWithOcr({ absolutePath, document }) {
+  try {
+    const text = await runTesseract(absolutePath);
+    const textChars = text.trim().length;
+    return {
+      documentKind: document.documentType,
+      status: "SKIPPED",
+      engine: "tesseract-image-validation",
+      ocrLanguage: TESSERACT_LANG,
+      text,
+      note: textChars
+        ? "圖片已建立 OCR 文字底稿；發票與憑證欄位仍需人工複核或後續模板抽取。"
+        : "圖片已入庫，但沒有抽到可用文字；請人工複核原始檔。",
+      meta: {
+        pageCount: 1,
+        text,
+        textChars,
+        imageOnlyPages: textChars ? 0 : 1,
+        pages: [{ pageNumber: 1, text, imageCount: 1 }]
+      }
+    };
+  } catch (error) {
+    return {
+      documentKind: document.documentType,
+      status: "SKIPPED",
+      engine: "tesseract-image-validation",
+      text: "",
+      note: `圖片已入庫，但影像 OCR 無法執行：${error.message}`,
+      meta: {
+        pageCount: 1,
+        text: "",
+        textChars: 0,
+        imageOnlyPages: 1,
+        pages: [{ pageNumber: 1, text: "", imageCount: 1 }]
+      }
+    };
+  }
+}
+
+function imageExtractionRows(documentId, extracted, meta) {
+  const rows = baseExtractionRows(documentId, meta);
+  if (extracted.text?.trim()) {
+    rows.push({
+      documentId,
+      fieldKey: "image_ocr_text_sample",
+      fieldLabel: "圖片 OCR 文字底稿",
+      rawValue: extracted.text.slice(0, 1000),
+      normalizedValue: extracted.text.slice(0, 1000),
+      confidence: 0.5,
+      pageNumber: 1
+    });
+  }
+  return rows;
+}
+
+function unsupportedFileResult(document) {
+  const isTable = isTableDocument(document);
+  return {
+    documentKind: document.documentType,
+    status: "SKIPPED",
+    engine: "file-intake-validation",
+    note: isTable
+      ? "表格或 CSV 檔案已入庫；此類檔案不走 OCR，請改由對應匯入模組解析。"
+      : "檔案已入庫；目前 OCR 僅支援 PDF 與圖片類文件。",
+    meta: {
+      pageCount: 0,
+      text: "",
+      textChars: 0,
+      imageOnlyPages: 0,
+      pages: []
+    }
+  };
 }
 
 async function parseFinancialStatementWithOcr({ absolutePath, document, meta }) {
@@ -497,7 +595,7 @@ function extractionRows(documentId, extracted, meta) {
     {
       documentId,
       fieldKey: "page_count",
-      fieldLabel: "PDF 頁數",
+      fieldLabel: "頁數",
       rawValue: String(meta.pageCount),
       normalizedValue: String(meta.pageCount),
       confidence: 1
@@ -557,7 +655,7 @@ function baseExtractionRows(documentId, meta) {
     {
       documentId,
       fieldKey: "page_count",
-      fieldLabel: "PDF 頁數",
+      fieldLabel: "頁數",
       rawValue: String(meta.pageCount),
       normalizedValue: String(meta.pageCount),
       confidence: 1
@@ -863,6 +961,27 @@ async function buildImageOnlyValidations({ document, extracted, meta }) {
   ];
 }
 
+async function buildFileIntakeValidations({ document, extracted, meta }) {
+  return [
+    validationRow({
+      companyId: document.companyId,
+      periodId: document.periodId,
+      documentId: document.id,
+      ruleKey: isImageDocument(document) ? "ocr_image_document_ready" : "ocr_file_intake_ready",
+      ruleLabel: isImageDocument(document) ? "圖片 OCR 底稿" : "檔案入庫狀態",
+      status: "WARNING",
+      message: extracted.note,
+      details: {
+        mimeType: document.mimeType,
+        fileName: document.originalName,
+        textChars: meta.textChars,
+        supportedOcrTypes: ["pdf", "image"],
+        tableImportTypes: ["csv", "tsv", "xlsx", "xls"]
+      }
+    })
+  ];
+}
+
 async function buildStatementValidations({ document, extracted }) {
   const balance = extracted.balanceSheet || {};
   const income = extracted.incomeStatement || {};
@@ -1006,45 +1125,63 @@ export async function runOcrValidation({ jobId, db = prisma }) {
     where: { id: job.id },
     data: {
       status: "PROCESSING",
-      engine: "pypdf-text-validation",
+      engine: "file-type-routing",
       startedAt,
       errorMessage: null
     }
   });
 
   try {
-    const meta = await extractPdfText(absolutePath);
-    const isImageOnly = meta.textChars < 40 && meta.imageOnlyPages > 0;
+    let meta;
     let extracted;
     let extractionData;
     let validationData;
     let finalStatus;
     let engine;
 
-    if (document.documentType === "VAT_401" && !isImageOnly) {
-      extracted = parseVat401(meta.text);
-      extractionData = extractionRows(document.id, extracted, meta);
-      validationData = await buildVatValidations({ document, extracted, db });
-      finalStatus = "COMPLETED";
-      engine = "pypdf-text-validation";
-    } else if (isImageOnly) {
-      extracted = await parseFinancialStatementWithOcr({ absolutePath, document, meta });
-      finalStatus = extracted.status || "SKIPPED";
-      engine = extracted.engine || "tesseract-chi-tra-validation";
-      extractionData =
-        finalStatus === "COMPLETED"
-          ? financialExtractionRows(document.id, extracted, meta)
-          : extractionRows(document.id, {}, meta);
-      validationData =
-        finalStatus === "COMPLETED"
-          ? await buildStatementValidations({ document, extracted })
-          : await buildImageOnlyValidations({ document, extracted, meta });
+    if (isPdfDocument(document)) {
+      meta = await extractPdfText(absolutePath);
+      const isImageOnly = meta.textChars < 40 && meta.imageOnlyPages > 0;
+
+      if (document.documentType === "VAT_401" && !isImageOnly) {
+        extracted = parseVat401(meta.text);
+        extractionData = extractionRows(document.id, extracted, meta);
+        validationData = await buildVatValidations({ document, extracted, db });
+        finalStatus = "COMPLETED";
+        engine = "pypdf-text-validation";
+      } else if (isImageOnly) {
+        extracted = await parseFinancialStatementWithOcr({ absolutePath, document, meta });
+        finalStatus = extracted.status || "SKIPPED";
+        engine = extracted.engine || "tesseract-chi-tra-validation";
+        extractionData =
+          finalStatus === "COMPLETED"
+            ? financialExtractionRows(document.id, extracted, meta)
+            : extractionRows(document.id, {}, meta);
+        validationData =
+          finalStatus === "COMPLETED"
+            ? await buildStatementValidations({ document, extracted })
+            : await buildImageOnlyValidations({ document, extracted, meta });
+      } else {
+        extracted = parseFinancialStatementImageOnly(meta.text, document.documentType);
+        extractionData = extractionRows(document.id, {}, meta);
+        validationData = await buildImageOnlyValidations({ document, extracted, meta });
+        finalStatus = "SKIPPED";
+        engine = "pypdf-text-validation";
+      }
+    } else if (isImageDocument(document)) {
+      extracted = await parseImageDocumentWithOcr({ absolutePath, document });
+      meta = extracted.meta;
+      extractionData = imageExtractionRows(document.id, extracted, meta);
+      validationData = await buildFileIntakeValidations({ document, extracted, meta });
+      finalStatus = extracted.status;
+      engine = extracted.engine;
     } else {
-      extracted = parseFinancialStatementImageOnly(meta.text, document.documentType);
-      extractionData = extractionRows(document.id, {}, meta);
-      validationData = await buildImageOnlyValidations({ document, extracted, meta });
-      finalStatus = "SKIPPED";
-      engine = "pypdf-text-validation";
+      extracted = unsupportedFileResult(document);
+      meta = extracted.meta;
+      extractionData = baseExtractionRows(document.id, meta);
+      validationData = await buildFileIntakeValidations({ document, extracted, meta });
+      finalStatus = extracted.status;
+      engine = extracted.engine;
     }
 
     await db.$transaction(async (tx) => {

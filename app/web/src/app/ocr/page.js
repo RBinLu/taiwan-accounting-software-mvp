@@ -1,6 +1,7 @@
 import StatusBadge from "@/components/StatusBadge";
 import OcrJobActions from "@/components/OcrJobActions";
 import { AuthError } from "@/lib/auth";
+import { authRedirectPath } from "@/lib/auth-redirect";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatDateTime } from "@/lib/format";
 import { rolesForApi } from "@/lib/permissions";
@@ -86,7 +87,7 @@ export default async function OcrPage() {
           canRunOcr: false
         };
       } else {
-        redirect(error.status === 428 ? "/change-password" : "/login");
+        redirect(authRedirectPath(error));
       }
     } else {
       throw error;

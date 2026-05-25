@@ -1,6 +1,7 @@
 import DocumentUploadForm from "@/components/DocumentUploadForm";
 import StatusBadge from "@/components/StatusBadge";
 import { AuthError, CSRF_COOKIE } from "@/lib/auth";
+import { authRedirectPath } from "@/lib/auth-redirect";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -38,7 +39,7 @@ export default async function DocumentsPage() {
     data = await getDocuments();
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(error.status === 428 ? "/change-password" : "/login");
+      redirect(authRedirectPath(error));
     }
     throw error;
   }
@@ -83,7 +84,10 @@ export default async function DocumentsPage() {
                   <tr key={document.id}>
                     <td>
                       <div>{document.originalName}</div>
-                      <div className="muted">{document.storagePath}</div>
+                      <div className="muted">
+                        {document.mimeType || "application/octet-stream"} /{" "}
+                        {Number(document.sizeBytes || 0).toLocaleString("zh-TW")} bytes
+                      </div>
                     </td>
                     <td>{document.documentType}</td>
                     <td>

@@ -1,5 +1,6 @@
 import ChangePasswordForm from "@/components/ChangePasswordForm";
-import { getCurrentSession } from "@/lib/auth";
+import { CSRF_COOKIE, getCurrentSession } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function ChangePasswordPage() {
   }
 
   const isFirstLogin = session.user.mustChangePassword;
+  const csrfToken = (await cookies()).get(CSRF_COOKIE)?.value || "";
 
   return (
     <main className="login-page">
@@ -25,7 +27,7 @@ export default async function ChangePasswordPage() {
               : "你可以隨時更新目前登入帳號的密碼。更新後其他裝置的舊登入狀態會失效。"}
           </p>
         </div>
-        <ChangePasswordForm email={session.user.email} />
+        <ChangePasswordForm email={session.user.email} csrfToken={csrfToken} />
       </section>
     </main>
   );

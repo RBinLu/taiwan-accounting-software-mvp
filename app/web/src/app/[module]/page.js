@@ -17,12 +17,14 @@ import {
   moneyValue,
   periodDateRange
 } from "@/lib/accounting-core";
-import { AuthError } from "@/lib/auth";
+import { AuthError, CSRF_COOKIE } from "@/lib/auth";
+import { authRedirectPath } from "@/lib/auth-redirect";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatMoney } from "@/lib/format";
 import { mvpModules } from "@/lib/mvp-module-config";
 import { rolesForModule } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -766,13 +768,14 @@ export default async function ModulePage({ params }) {
   if (!config) {
     notFound();
   }
+  const csrfToken = (await cookies()).get(CSRF_COOKIE)?.value || "";
 
   let data;
   try {
     data = await getModuleRows(module);
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(error.status === 428 ? "/change-password" : "/login");
+      redirect(authRedirectPath(error));
     }
     throw error;
   }
@@ -825,8 +828,13 @@ export default async function ModulePage({ params }) {
               <span>Quick Entry</span>
               <h2>{config.createLabel || config.title}</h2>
             </div>
-            <QuickCreateForm moduleKey={module} config={config} periodState={data.periodState} />
-            {module === "attachments" ? <AttachmentUploadForm /> : null}
+            <QuickCreateForm
+              moduleKey={module}
+              config={config}
+              periodState={data.periodState}
+              csrfToken={csrfToken}
+            />
+            {module === "attachments" ? <AttachmentUploadForm csrfToken={csrfToken} /> : null}
           </div>
           {data.automationState ? (
             <ModuleAutomationPanel

@@ -3,6 +3,7 @@ import { AuthError } from "@/lib/auth";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatDateTime } from "@/lib/format";
 import { mvpModules } from "@/lib/mvp-module-config";
+import { rolesForModule } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import {
@@ -49,7 +50,7 @@ async function getDashboard() {
     throw error;
   }
 
-  const { company } = context;
+  const { company, role } = context;
 
   try {
     const [
@@ -118,6 +119,7 @@ async function getDashboard() {
 
     return {
       ok: true,
+      role,
       currentTaxPeriod,
       companyCount,
       documentCount,
@@ -197,7 +199,11 @@ export default async function DashboardPage() {
     ]
   ];
 
-  const modules = Object.values(mvpModules);
+  const modules = Object.values(mvpModules).filter((module) => {
+    const key = module.path.replace(/^\//, "");
+    if (["documents", "ocr"].includes(key) || key.startsWith("reports/")) return true;
+    return rolesForModule(key, "read").includes(data.role);
+  });
 
   return (
     <>

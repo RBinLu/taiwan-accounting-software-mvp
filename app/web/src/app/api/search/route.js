@@ -1,5 +1,5 @@
 import { mvpModules } from "@/lib/mvp-module-config";
-import { ROLE_SETS } from "@/lib/permissions";
+import { ROLE_SETS, rolesForModule } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError, requireApiAccess } from "@/lib/security";
 import { NextResponse } from "next/server";
@@ -88,10 +88,25 @@ function includesQuery(entry, query) {
   return haystack.includes(query);
 }
 
+function moduleFromHref(href) {
+  if (href === "/" || href === "/change-password" || href === "/forgot-password") return null;
+  if (href === "/documents") return "documents";
+  if (href === "/ocr") return "ocr";
+  if (href.startsWith("/reports/")) return "reports";
+  return href.replace(/^\//, "");
+}
+
+function canReadEntry(entry, role) {
+  const module = moduleFromHref(entry.href);
+  if (!module) return true;
+  if (module === "documents" || module === "ocr" || module === "reports") return true;
+  return rolesForModule(module, "read").includes(role);
+}
+
 export async function GET(request) {
   try {
     const query = normalize(new URL(request.url).searchParams.get("q"));
-    const { company } = await requireApiAccess(request, {
+    const { company, role } = await requireApiAccess(request, {
       roles: ROLE_SETS.readAll,
       rateLimit: { limit: 90, windowMs: 60_000 }
     });
@@ -103,7 +118,7 @@ export async function GET(request) {
     const results = [];
 
     for (const entry of [...staticEntries, ...moduleEntries]) {
-      if (includesQuery(entry, query)) {
+      if (canReadEntry(entry, role) && includesQuery(entry, query)) {
         results.push(entry);
       }
     }
@@ -123,7 +138,9 @@ export async function GET(request) {
         type: "company",
         title: company.name,
         subtitle: `統編 ${company.taxId} / 申報 ${company.filingType}`,
-        href: "/company-settings",
+        href: rolesForModule("company-settings", "read").includes(role)
+          ? "/company-settings"
+          : "/",
         keywords: []
       });
     }

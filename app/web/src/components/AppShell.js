@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import GlobalSearch from "@/components/GlobalSearch";
 import { csrfHeaders } from "@/lib/client-security";
+import { rolesForModule } from "@/lib/permissions";
 import { usePathname } from "next/navigation";
 
 const navGroups = [
@@ -79,9 +80,33 @@ function isActivePath(pathname, href) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export default function AppShell({ children }) {
+function moduleForHref(href) {
+  if (href === "/" || href === "/change-password") return null;
+  if (href === "/documents") return "documents";
+  if (href === "/ocr") return "ocr";
+  if (href.startsWith("/reports/")) return "reports";
+  return href.replace(/^\//, "");
+}
+
+function canReadHref(href, roles) {
+  const module = moduleForHref(href);
+  if (!module) return true;
+  if (module === "documents" || module === "ocr" || module === "reports") return roles.length > 0;
+  return roles.some((role) => rolesForModule(module, "read").includes(role));
+}
+
+export default function AppShell({ children, userRoles = [] }) {
   const pathname = usePathname();
   const navRef = useRef(null);
+  const readableNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canReadHref(item.href, userRoles))
+    }))
+    .filter((group) => group.items.length > 0);
+  const canReadCompanySettings = canReadHref("/company-settings", userRoles);
+  const canReadPermissions = canReadHref("/permissions", userRoles);
+  const canReadAudit = canReadHref("/audit", userRoles);
   const isHome = pathname === "/";
   const isAuthPage =
     pathname === "/login" ||
@@ -174,7 +199,7 @@ export default function AppShell({ children }) {
               <Home size={15} strokeWidth={2.1} />
               <span>總覽</span>
             </a>
-            {navGroups.map((group) => {
+            {readableNavGroups.map((group) => {
               const Icon = group.icon || Landmark;
               const isActive = group.items.some((item) => isActivePath(pathname, item.href));
               return (
@@ -239,18 +264,24 @@ export default function AppShell({ children }) {
                   <strong>更換密碼</strong>
                   <span>更新目前登入帳號</span>
                 </a>
-                <a href="/company-settings" role="menuitem">
-                  <strong>公司主檔</strong>
-                  <span>統編、申報別與公司資料</span>
-                </a>
-                <a href="/permissions" role="menuitem">
-                  <strong>權限管理</strong>
-                  <span>使用者角色與啟用狀態</span>
-                </a>
-                <a href="/audit" role="menuitem">
-                  <strong>稽核軌跡</strong>
-                  <span>查看系統操作紀錄</span>
-                </a>
+                {canReadCompanySettings ? (
+                  <a href="/company-settings" role="menuitem">
+                    <strong>公司主檔</strong>
+                    <span>統編、申報別與公司資料</span>
+                  </a>
+                ) : null}
+                {canReadPermissions ? (
+                  <a href="/permissions" role="menuitem">
+                    <strong>權限管理</strong>
+                    <span>使用者角色與啟用狀態</span>
+                  </a>
+                ) : null}
+                {canReadAudit ? (
+                  <a href="/audit" role="menuitem">
+                    <strong>稽核軌跡</strong>
+                    <span>查看系統操作紀錄</span>
+                  </a>
+                ) : null}
               </div>
             </div>
 

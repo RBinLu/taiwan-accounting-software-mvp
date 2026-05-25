@@ -1,5 +1,6 @@
 import CompanyProfileForm from "@/components/CompanyProfileForm";
 import { AuthError } from "@/lib/auth";
+import { authRedirectPath } from "@/lib/auth-redirect";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { ROLE_SETS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -80,7 +81,7 @@ export default async function CompanySettingsPage() {
     data = await getCompanySettingsData();
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(error.status === 428 ? "/change-password" : "/login");
+      redirect(authRedirectPath(error));
     }
     throw error;
   }

@@ -11,12 +11,16 @@ export default function ForgotPasswordForm() {
     setIsSaving(true);
     setMessage("送出中...");
 
-    const payload = Object.fromEntries(new FormData(event.currentTarget));
+    const form = event.currentTarget;
+    const payload = Object.fromEntries(new FormData(form));
 
     try {
       const response = await fetch("/api/auth/password-reset-request", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-acctly-fetch": "1"
+        },
         body: JSON.stringify(payload)
       });
       const body = await response.json();
@@ -26,7 +30,7 @@ export default function ForgotPasswordForm() {
       }
 
       setMessage("若帳號存在，系統已記錄重設請求。請由總管理員在權限管理中重設密碼。");
-      event.currentTarget.reset();
+      form.reset();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -35,7 +39,12 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <form className="login-form" onSubmit={handleSubmit}>
+    <form
+      action="/api/auth/password-reset-request"
+      className="login-form"
+      method="post"
+      onSubmit={handleSubmit}
+    >
       <label>
         <span>Email</span>
         <input name="email" type="email" autoComplete="username" required />

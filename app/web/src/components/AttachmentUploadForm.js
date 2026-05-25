@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { csrfHeaders } from "@/lib/client-security";
 
-export default function AttachmentUploadForm() {
+export default function AttachmentUploadForm({ csrfToken = "" }) {
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -12,11 +12,13 @@ export default function AttachmentUploadForm() {
     setIsSaving(true);
     setMessage("上傳中...");
 
+    const form = event.currentTarget;
+
     try {
       const response = await fetch("/api/accounting/attachments", {
         method: "POST",
-        headers: csrfHeaders(),
-        body: new FormData(event.currentTarget)
+        headers: csrfHeaders({ "x-acctly-fetch": "1" }),
+        body: new FormData(form)
       });
       const body = await response.json();
 
@@ -25,7 +27,7 @@ export default function AttachmentUploadForm() {
       }
 
       setMessage("已上傳");
-      event.currentTarget.reset();
+      form.reset();
       window.setTimeout(() => window.location.reload(), 450);
     } catch (error) {
       setMessage(error.message);
@@ -34,7 +36,14 @@ export default function AttachmentUploadForm() {
   }
 
   return (
-    <form className="module-form attachment-upload-form" onSubmit={handleSubmit}>
+    <form
+      action="/api/accounting/attachments"
+      className="module-form attachment-upload-form"
+      encType="multipart/form-data"
+      method="post"
+      onSubmit={handleSubmit}
+    >
+      <input name="csrfToken" type="hidden" value={csrfToken} />
       <label className="module-field">
         <span>附件檔案</span>
         <input name="file" type="file" required />

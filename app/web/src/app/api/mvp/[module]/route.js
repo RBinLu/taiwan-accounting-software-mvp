@@ -16,11 +16,40 @@ import {
 } from "@/lib/commercial-workflows";
 import { rolesForModule } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { handleRouteError, requireApiAccess } from "@/lib/security";
+import { publicRedirectUrl } from "@/lib/request-url";
+import {
+  assertSubmittedCsrfToken,
+  handleRouteError,
+  requireApiAccess
+} from "@/lib/security";
 import { NextResponse } from "next/server";
 
 function badRequest(message) {
   return NextResponse.json({ ok: false, message }, { status: 400 });
+}
+
+function isJsonRequest(request) {
+  return request.headers.get("content-type")?.includes("application/json");
+}
+
+async function readPayload(request, session) {
+  if (isJsonRequest(request)) {
+    return request.json();
+  }
+
+  const formData = await request.formData();
+  assertSubmittedCsrfToken(formData.get("csrfToken"), session);
+  const payload = Object.fromEntries(formData);
+  delete payload.csrfToken;
+  return payload;
+}
+
+function successResponse(request, module, record) {
+  if (isJsonRequest(request) || request.headers.get("x-acctly-fetch") === "1") {
+    return NextResponse.json({ ok: true, record });
+  }
+
+  return NextResponse.redirect(publicRedirectUrl(request, `/${module}?created=1`), 303);
 }
 
 const periodBoundModules = new Set([
@@ -39,10 +68,11 @@ export async function POST(request, { params }) {
   const { module } = await params;
 
   try {
-    const payload = await request.json();
-    const { company, period, bankAccount, user } = await requireApiAccess(request, {
-      roles: rolesForModule(module, "write")
+    const { company, period, bankAccount, user, session } = await requireApiAccess(request, {
+      roles: rolesForModule(module, "write"),
+      csrf: isJsonRequest(request)
     });
+    const payload = await readPayload(request, session);
 
     if (periodBoundModules.has(module)) {
       assertPeriodOpen(period);
@@ -451,7 +481,7 @@ export async function POST(request, { params }) {
         request
       });
     }
-    return NextResponse.json({ ok: true, record });
+    return successResponse(request, module, record);
   } catch (error) {
     return handleRouteError(error, "新增資料失敗");
   }

@@ -1,5 +1,6 @@
 import StatusBadge from "@/components/StatusBadge";
 import { AuthError } from "@/lib/auth";
+import { authRedirectPath } from "@/lib/auth-redirect";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatMoney } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -34,7 +35,7 @@ export default async function VatReturnsPage() {
     data = await getVatReturns();
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(error.status === 428 ? "/change-password" : "/login");
+      redirect(authRedirectPath(error));
     }
     throw error;
   }

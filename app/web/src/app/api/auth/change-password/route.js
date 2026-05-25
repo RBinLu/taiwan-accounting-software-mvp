@@ -8,13 +8,32 @@ import {
 } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { publicRedirectUrl } from "@/lib/request-url";
 import {
   assertCsrf,
+  assertSubmittedCsrfToken,
   enforceRateLimit,
   handleRouteError,
   requestMeta
 } from "@/lib/security";
 import { NextResponse } from "next/server";
+
+function isJsonRequest(request) {
+  return request.headers.get("content-type")?.includes("application/json");
+}
+
+async function readPayload(request, session) {
+  if (isJsonRequest(request)) {
+    assertCsrf(request, session);
+    return request.json();
+  }
+
+  const formData = await request.formData();
+  assertSubmittedCsrfToken(formData.get("csrfToken"), session);
+  const payload = Object.fromEntries(formData);
+  delete payload.csrfToken;
+  return payload;
+}
 
 export async function POST(request) {
   try {
@@ -30,9 +49,7 @@ export async function POST(request) {
       limit: 8,
       windowMs: 15 * 60_000
     });
-    assertCsrf(request, session);
-
-    const payload = await request.json();
+    const payload = await readPayload(request, session);
     const currentPassword = String(payload.currentPassword || "");
     const newPassword = String(payload.newPassword || "");
     const confirmPassword = String(payload.confirmPassword || "");
@@ -89,7 +106,11 @@ export async function POST(request) {
       request
     });
 
-    return NextResponse.json({ ok: true });
+    if (isJsonRequest(request) || request.headers.get("x-acctly-fetch") === "1") {
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.redirect(publicRedirectUrl(request, "/"), 303);
   } catch (error) {
     return handleRouteError(error, "密碼更新失敗");
   }

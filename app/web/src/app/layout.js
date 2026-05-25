@@ -1,4 +1,5 @@
 import AppShell from "@/components/AppShell";
+import { getCurrentSession } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata = {
@@ -11,11 +12,14 @@ export const viewport = {
   initialScale: 1
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const session = await getCurrentSession();
+  const userRoles = session?.user?.companies?.map((membership) => membership.role) || [];
+
   return (
     <html lang="zh-Hant">
       <body>
-        <AppShell>{children}</AppShell>
+        <AppShell userRoles={userRoles}>{children}</AppShell>
       </body>
     </html>
   );

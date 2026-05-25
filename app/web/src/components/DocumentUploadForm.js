@@ -12,7 +12,8 @@ export default function DocumentUploadForm({ csrfToken = "" }) {
     setIsSubmitting(true);
     setStatus("上傳中...");
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
     try {
       const response = await fetch("/api/documents", {
@@ -27,7 +28,7 @@ export default function DocumentUploadForm({ csrfToken = "" }) {
       }
 
       setStatus("已建立 OCR 任務與複核工作。");
-      event.currentTarget.reset();
+      form.reset();
       window.setTimeout(() => window.location.reload(), 700);
     } catch (error) {
       setStatus(error.message);

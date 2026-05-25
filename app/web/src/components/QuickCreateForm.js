@@ -15,7 +15,7 @@ const lockedModules = new Set([
   "inventory"
 ]);
 
-export default function QuickCreateForm({ moduleKey, config, periodState }) {
+export default function QuickCreateForm({ moduleKey, config, periodState, csrfToken = "" }) {
   const [status, setStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -46,7 +46,10 @@ export default function QuickCreateForm({ moduleKey, config, periodState }) {
     try {
       const response = await fetch(`/api/mvp/${moduleKey}`, {
         method: "POST",
-        headers: csrfHeaders({ "content-type": "application/json" }),
+        headers: csrfHeaders({
+          "content-type": "application/json",
+          "x-acctly-fetch": "1"
+        }),
         body: JSON.stringify(payload)
       });
       const body = await response.json();
@@ -65,7 +68,13 @@ export default function QuickCreateForm({ moduleKey, config, periodState }) {
   }
 
   return (
-    <form className="module-form" onSubmit={handleSubmit}>
+    <form
+      action={`/api/mvp/${moduleKey}`}
+      className="module-form"
+      method="post"
+      onSubmit={handleSubmit}
+    >
+      <input name="csrfToken" type="hidden" value={csrfToken} />
       <div className="module-form-grid">
         {config.fields.map((field) => (
           <label className="module-field" key={field.name}>

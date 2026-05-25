@@ -5,7 +5,9 @@ import { textValue } from "@/lib/accounting-core";
 import { writeAudit } from "@/lib/audit";
 import { rolesForApi } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { publicRedirectUrl } from "@/lib/request-url";
 import {
+  assertSubmittedCsrfToken,
   handleRouteError,
   requireApiAccess,
   validateUploadFile
@@ -66,11 +68,13 @@ export async function POST(request) {
   try {
     await ensureStorageDirs();
 
-    const { company, user } = await requireApiAccess(request, {
+    const { company, user, session } = await requireApiAccess(request, {
       roles: rolesForApi("attachments:upload"),
-      rateLimit: { limit: 20, windowMs: 10 * 60_000 }
+      rateLimit: { limit: 20, windowMs: 10 * 60_000 },
+      csrf: false
     });
     const formData = await request.formData();
+    assertSubmittedCsrfToken(formData.get("csrfToken"), session);
     const file = formData.get("file");
 
     validateUploadFile(file);
@@ -122,7 +126,11 @@ export async function POST(request) {
       request
     });
 
-    return NextResponse.json({ ok: true, attachment }, { status: 201 });
+    if (request.headers.get("x-acctly-fetch") === "1") {
+      return NextResponse.json({ ok: true, attachment }, { status: 201 });
+    }
+
+    return NextResponse.redirect(publicRedirectUrl(request, "/attachments?uploaded=1"), 303);
   } catch (error) {
     return handleRouteError(error, "附件上傳失敗");
   }
