@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -81,12 +81,60 @@ function isActivePath(pathname, href) {
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
+  const navRef = useRef(null);
   const isHome = pathname === "/";
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/change-password" ||
     pathname === "/forgot-password";
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  function closeOpenNavGroups() {
+    navRef.current
+      ?.querySelectorAll("details.nav-group[open]")
+      .forEach((group) => {
+        group.open = false;
+      });
+  }
+
+  function closeNavGroupsFromOutside(event) {
+    if (!navRef.current?.contains(event.target)) {
+      closeOpenNavGroups();
+    }
+  }
+
+  useEffect(() => {
+    closeOpenNavGroups();
+  }, [pathname]);
+
+  useEffect(() => {
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        closeOpenNavGroups();
+      }
+    }
+
+    document.addEventListener("pointerdown", closeNavGroupsFromOutside, true);
+    document.addEventListener("mousedown", closeNavGroupsFromOutside, true);
+    document.addEventListener("click", closeNavGroupsFromOutside, true);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeNavGroupsFromOutside, true);
+      document.removeEventListener("mousedown", closeNavGroupsFromOutside, true);
+      document.removeEventListener("click", closeNavGroupsFromOutside, true);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  function closeSiblingNavGroups(currentGroup) {
+    navRef.current
+      ?.querySelectorAll("details.nav-group[open]")
+      .forEach((group) => {
+        if (group !== currentGroup) {
+          group.open = false;
+        }
+      });
+  }
 
   if (isAuthPage) {
     return children;
@@ -106,7 +154,12 @@ export default function AppShell({ children }) {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onClickCapture={closeNavGroupsFromOutside}
+      onMouseDownCapture={closeNavGroupsFromOutside}
+      onPointerDownCapture={closeNavGroupsFromOutside}
+    >
       <div className="app-frame">
         <header className="topbar">
           <a className="brand" href="/">
@@ -116,7 +169,7 @@ export default function AppShell({ children }) {
             <span className="brand-title">ACCTLY</span>
           </a>
 
-          <nav className="nav-list" aria-label="主選單">
+          <nav className="nav-list" aria-label="主選單" ref={navRef}>
             <a href="/" className={`nav-item ${isActivePath(pathname, "/") ? "active" : ""}`}>
               <Home size={15} strokeWidth={2.1} />
               <span>總覽</span>
@@ -125,16 +178,24 @@ export default function AppShell({ children }) {
               const Icon = group.icon || Landmark;
               const isActive = group.items.some((item) => isActivePath(pathname, item.href));
               return (
-                <div className={`nav-group ${isActive ? "active" : ""}`} key={group.label}>
-                  <button
+                <details
+                  className={`nav-group ${isActive ? "active" : ""}`}
+                  key={group.label}
+                  name="main-navigation"
+                  onToggle={(event) => {
+                    if (event.currentTarget.open) {
+                      closeSiblingNavGroups(event.currentTarget);
+                    }
+                  }}
+                >
+                  <summary
                     className="nav-group-trigger"
-                    type="button"
                     aria-haspopup="menu"
                     aria-label={`${group.label}選單`}
                   >
                     <Icon size={15} strokeWidth={2.1} />
                     <span>{group.label}</span>
-                  </button>
+                  </summary>
                   <div className="nav-group-menu" role="menu">
                     {group.items.map((item) => (
                       <a
@@ -142,13 +203,16 @@ export default function AppShell({ children }) {
                         href={item.href}
                         role="menuitem"
                         className={isActivePath(pathname, item.href) ? "active" : ""}
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                        }}
                       >
                         <strong>{item.label}</strong>
                         <span>{item.description}</span>
                       </a>
                     ))}
                   </div>
-                </div>
+                </details>
               );
             })}
           </nav>

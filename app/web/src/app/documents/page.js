@@ -1,9 +1,10 @@
 import DocumentUploadForm from "@/components/DocumentUploadForm";
 import StatusBadge from "@/components/StatusBadge";
-import { AuthError } from "@/lib/auth";
+import { AuthError, CSRF_COOKIE } from "@/lib/auth";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function DocumentsPage() {
     }
     throw error;
   }
+  const csrfToken = (await cookies()).get(CSRF_COOKIE)?.value || "";
 
   return (
     <>
@@ -55,7 +57,7 @@ export default async function DocumentsPage() {
         </div>
       </header>
 
-      <DocumentUploadForm />
+      <DocumentUploadForm csrfToken={csrfToken} />
 
       <h2 className="section-title">最近文件</h2>
       {!data.ok ? (

@@ -3,15 +3,17 @@ import OcrJobActions from "@/components/OcrJobActions";
 import { AuthError } from "@/lib/auth";
 import { ensureMvpContext } from "@/lib/demo-context";
 import { formatDateTime } from "@/lib/format";
+import { rolesForApi } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 async function getJobs() {
-  const { company } = await ensureMvpContext({
-    roles: ["OWNER", "ADMIN", "ACCOUNTANT", "REVIEWER"]
+  const { company, role } = await ensureMvpContext({
+    roles: rolesForApi("ocr:read")
   });
+  const canRunOcr = rolesForApi("ocr:run").includes(role);
 
   try {
     const [jobs, validations, extractions] = await Promise.all([
@@ -55,9 +57,16 @@ async function getJobs() {
         }
       })
     ]);
-    return { ok: true, jobs, validations, extractions };
+    return { ok: true, jobs, validations, extractions, canRunOcr };
   } catch (error) {
-    return { ok: false, message: error.message, jobs: [], validations: [], extractions: [] };
+    return {
+      ok: false,
+      message: error.message,
+      jobs: [],
+      validations: [],
+      extractions: [],
+      canRunOcr
+    };
   }
 }
 
@@ -67,13 +76,25 @@ export default async function OcrPage() {
     data = await getJobs();
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(error.status === 428 ? "/change-password" : "/login");
+      if (error.status === 403) {
+        data = {
+          ok: false,
+          message: error.message,
+          jobs: [],
+          validations: [],
+          extractions: [],
+          canRunOcr: false
+        };
+      } else {
+        redirect(error.status === 428 ? "/change-password" : "/login");
+      }
+    } else {
+      throw error;
     }
-    throw error;
   }
 
   return (
-    <>
+    <div className="ocr-page">
       <header className="page-head">
         <div>
           <div className="eyebrow">OCR Jobs</div>
@@ -120,7 +141,13 @@ export default async function OcrPage() {
                       <div className="muted">{job.document._count.validationRows} 筆驗證</div>
                     </td>
                     <td>{formatDateTime(job.queuedAt)}</td>
-                    <td><OcrJobActions jobId={job.id} /></td>
+                    <td>
+                      {data.canRunOcr ? (
+                        <OcrJobActions jobId={job.id} />
+                      ) : (
+                        <span className="module-muted-action">唯讀</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -131,33 +158,32 @@ export default async function OcrPage() {
 
       <h2 className="section-title">最近驗證結果</h2>
       {!data.ok ? null : (
-        <div className="table-panel">
+        <div className="ocr-validation-panel">
           {data.validations.length === 0 ? (
             <div className="empty-state">尚未產生 OCR 驗證結果。</div>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>狀態</th>
-                  <th>規則</th>
-                  <th>文件 / 期間</th>
-                  <th>訊息</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.validations.map((row) => (
-                  <tr key={row.id}>
-                    <td><StatusBadge value={row.status} /></td>
-                    <td>{row.ruleLabel}</td>
-                    <td>
-                      <div>{row.document?.originalName || "-"}</div>
-                      <div className="muted">{row.period?.taxPeriod || "-"}</div>
-                    </td>
-                    <td>{row.message}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="ocr-validation-list">
+              {data.validations.map((row) => (
+                <article className="ocr-validation-row" key={row.id}>
+                  <div className="ocr-validation-status">
+                    <StatusBadge value={row.status} />
+                  </div>
+                  <div className="ocr-validation-rule">
+                    <span>規則</span>
+                    <strong>{row.ruleLabel}</strong>
+                  </div>
+                  <div className="ocr-validation-document">
+                    <span>文件 / 期間</span>
+                    <strong>{row.document?.originalName || "-"}</strong>
+                    <small>{row.period?.taxPeriod || "-"}</small>
+                  </div>
+                  <div className="ocr-validation-message">
+                    <span>訊息</span>
+                    <p>{row.message}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -191,6 +217,6 @@ export default async function OcrPage() {
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }

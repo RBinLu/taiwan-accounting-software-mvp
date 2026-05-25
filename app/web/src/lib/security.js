@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import { AuthError, CSRF_COOKIE, hashToken } from "./auth.js";
 import { AccountingError } from "./accounting-core.js";
 import { ensureMvpContext } from "./demo-context.js";
+import {
+  ACCOUNTING_UPLOAD_POLICY,
+  getUploadValidationError
+} from "./upload-policy.js";
+
+export { ACCOUNTING_UPLOAD_POLICY };
 
 export class SecurityError extends Error {
   constructor(message, status = 403) {
@@ -13,32 +19,6 @@ export class SecurityError extends Error {
 }
 
 const rateLimitBuckets = new Map();
-
-export const ACCOUNTING_UPLOAD_POLICY = {
-  maxBytes: 10 * 1024 * 1024,
-  allowedExtensions: new Set([
-    ".pdf",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".csv",
-    ".txt",
-    ".tsv",
-    ".xlsx",
-    ".xls"
-  ]),
-  allowedMimeTypes: new Set([
-    "application/pdf",
-    "image/png",
-    "image/jpeg",
-    "text/csv",
-    "text/plain",
-    "text/tab-separated-values",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/octet-stream"
-  ])
-};
 
 export function jsonError(message, status = 400) {
   return NextResponse.json({ ok: false, message }, { status });
@@ -120,6 +100,18 @@ export function assertCsrf(request, session = null) {
   }
 }
 
+export function assertSubmittedCsrfToken(token, session = null) {
+  const submittedToken = String(token || "");
+
+  if (!submittedToken) {
+    throw new SecurityError("CSRF 驗證失敗，請重新整理後再操作", 403);
+  }
+
+  if (session?.csrfTokenHash && hashToken(submittedToken) !== session.csrfTokenHash) {
+    throw new SecurityError("CSRF token 已失效，請重新登入", 403);
+  }
+}
+
 export async function requireApiAccess(
   request,
   { roles = [], rateLimit = {}, csrf = true, allowPasswordChangeRequired = false } = {}
@@ -144,32 +136,9 @@ export async function requireApiAccess(
 }
 
 export function validateUploadFile(file, policy = ACCOUNTING_UPLOAD_POLICY) {
-  const name = String(file?.name || "");
-  const size = Number(file?.size || 0);
-  const mimeType = String(file?.type || "application/octet-stream").toLowerCase();
-  const extension = name.match(/(\.[a-zA-Z0-9]{1,12})$/)?.[1]?.toLowerCase() || "";
-
-  if (!file || typeof file.arrayBuffer !== "function") {
-    throw new SecurityError("請選擇要上傳的檔案", 400);
-  }
-
-  if (size <= 0) {
-    throw new SecurityError("上傳檔案不可為空", 400);
-  }
-
-  if (size > policy.maxBytes) {
-    throw new SecurityError(
-      `檔案大小不可超過 ${Math.floor(policy.maxBytes / 1024 / 1024)} MB`,
-      413
-    );
-  }
-
-  if (!policy.allowedExtensions.has(extension)) {
-    throw new SecurityError("不允許的檔案副檔名", 415);
-  }
-
-  if (mimeType && !policy.allowedMimeTypes.has(mimeType)) {
-    throw new SecurityError("不允許的檔案類型", 415);
+  const validationError = getUploadValidationError(file, policy);
+  if (validationError) {
+    throw new SecurityError(validationError.message, validationError.status);
   }
 }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { csrfHeaders } from "@/lib/client-security";
 
-export default function DocumentUploadForm() {
+export default function DocumentUploadForm({ csrfToken = "" }) {
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -17,7 +17,7 @@ export default function DocumentUploadForm() {
     try {
       const response = await fetch("/api/documents", {
         method: "POST",
-        headers: csrfHeaders(),
+        headers: csrfHeaders({ "x-acctly-fetch": "1" }),
         body: formData
       });
       const result = await response.json();
@@ -37,7 +37,14 @@ export default function DocumentUploadForm() {
   }
 
   return (
-    <form className="upload-panel" onSubmit={onSubmit}>
+    <form
+      action="/api/documents"
+      className="upload-panel"
+      encType="multipart/form-data"
+      method="post"
+      onSubmit={onSubmit}
+    >
+      <input name="csrfToken" type="hidden" value={csrfToken} />
       <div className="form-row">
         <label htmlFor="documentType">文件類型</label>
         <select id="documentType" name="documentType" defaultValue="VAT_401">

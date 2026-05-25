@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { rolesForApi } from "@/lib/permissions";
 import {
+  assertSubmittedCsrfToken,
   handleRouteError,
   requireApiAccess,
   validateUploadFile
@@ -16,6 +17,7 @@ import {
   uploadsDir,
   workspaceRoot
 } from "@/lib/project-paths";
+import { publicRedirectUrl } from "@/lib/request-url";
 import { ensureStorageDirs } from "@/lib/storage";
 
 export async function GET(request) {
@@ -52,11 +54,13 @@ export async function POST(request) {
   try {
     await ensureStorageDirs();
 
-    const { company, period, user } = await requireApiAccess(request, {
+    const { company, period, user, session } = await requireApiAccess(request, {
       roles: rolesForApi("documents:upload"),
-      rateLimit: { limit: 20, windowMs: 10 * 60_000 }
+      rateLimit: { limit: 20, windowMs: 10 * 60_000 },
+      csrf: false
     });
     const formData = await request.formData();
+    assertSubmittedCsrfToken(formData.get("csrfToken"), session);
     const file = formData.get("file");
     const documentType = String(formData.get("documentType") || "OTHER");
 
@@ -126,7 +130,11 @@ export async function POST(request) {
       request
     });
 
-    return NextResponse.json({ ok: true, document }, { status: 201 });
+    if (request.headers.get("x-acctly-fetch") === "1") {
+      return NextResponse.json({ ok: true, document }, { status: 201 });
+    }
+
+    return NextResponse.redirect(publicRedirectUrl(request, "/documents?uploaded=1"), 303);
   } catch (error) {
     return handleRouteError(error, "文件上傳失敗");
   }
