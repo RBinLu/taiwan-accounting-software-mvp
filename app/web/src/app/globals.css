@@ -270,6 +270,9 @@ button {
 .topbar-tool {
   position: relative;
   display: inline-flex;
+  align-items: flex-start;
+  min-height: 54px;
+  margin-bottom: -14px;
 }
 
 .global-search {
@@ -422,7 +425,7 @@ button {
 .topbar-popover {
   display: none;
   position: absolute;
-  top: calc(100% + 10px);
+  top: 50px;
   right: 0;
   z-index: 20;
   width: 260px;
