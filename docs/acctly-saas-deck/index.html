@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACCTLY 台灣會計 OCR SaaS 簡報</title>
+  <link rel="stylesheet" href="assets/html-ppt/fonts.css">
+  <link rel="stylesheet" href="assets/html-ppt/base.css">
+  <link rel="stylesheet" href="assets/html-ppt/animations/animations.css">
+  <style>
+    :root {
+      --bg: #f4f7fa;
+      --bg-soft: #edf2f7;
+      --surface: #ffffff;
+      --surface-2: #eef3f6;
+      --border: rgba(24, 35, 51, 0.12);
+      --border-strong: rgba(24, 35, 51, 0.24);
+      --text-1: #172033;
+      --text-2: #526174;
+      --text-3: #7d8a9c;
+      --accent: #c94b38;
+      --accent-2: #1f8a70;
+      --accent-3: #d29a2e;
+      --good: #1f8a70;
+      --warn: #d29a2e;
+      --bad: #c94b38;
+      --radius: 8px;
+      --radius-sm: 6px;
+      --radius-lg: 8px;
+      --shadow: 0 14px 34px rgba(24, 35, 51, 0.08);
+      --shadow-lg: 0 24px 50px rgba(24, 35, 51, 0.12);
+      --letter-tight: 0;
+      --letter-normal: 0;
+    }
+
+    html, body {
+      letter-spacing: 0;
+    }
+
+    .acctly-deck {
+      --rail: #172033;
+      background: var(--bg);
+      font-family: Inter, "Noto Sans TC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .acctly-deck .slide {
+      padding: 54px 68px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.86), rgba(255,255,255,0.64)),
+        repeating-linear-gradient(0deg, rgba(23,32,51,0.045), rgba(23,32,51,0.045) 1px, transparent 1px, transparent 38px),
+        var(--bg);
+    }
+
+    .deck-mark {
+      position: absolute;
+      top: 28px;
+      left: 40px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--text-1);
+      font-weight: 850;
+      z-index: 3;
+    }
+
+    .mark-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .deck-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .slide-title {
+      max-width: 980px;
+      margin: 0;
+      color: var(--text-1);
+      font-size: 58px;
+      line-height: 1.08;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .slide-subtitle {
+      max-width: 760px;
+      margin: 16px 0 0;
+      color: var(--text-2);
+      font-size: 21px;
+      line-height: 1.48;
+      font-weight: 430;
+    }
+
+    .section-label {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.02fr);
+      gap: 28px;
+      align-items: stretch;
+      width: 100%;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      width: 100%;
+    }
+
+    .four-col {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .panel h3,
+    .mini-card h3 {
+      margin: 0 0 8px;
+      color: var(--text-1);
+      font-size: 22px;
+      line-height: 1.22;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .panel p,
+    .mini-card p {
+      margin: 0;
+      color: var(--text-2);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .mini-card {
+      min-height: 146px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.92);
+      padding: 18px;
+    }
+
+    .metric {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .metric strong {
+      color: var(--accent);
+      font-size: 44px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .metric span {
+      color: var(--text-2);
+      font-size: 13px;
+      line-height: 1.34;
+      font-weight: 700;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-2);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .tag.red { color: var(--accent); border-color: rgba(201,75,56,0.32); }
+    .tag.green { color: var(--accent-2); border-color: rgba(31,138,112,0.32); }
+    .tag.gold { color: #8b641d; border-color: rgba(210,154,46,0.34); }
+
+    .screen-frame {
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .screen-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .screen-wide {
+      aspect-ratio: 16 / 9;
+    }
+
+    .screen-stack {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .screen-stack .screen-frame {
+      aspect-ratio: 16 / 9;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 28px;
+    }
+
+    .flow-node {
+      position: relative;
+      min-height: 164px;
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--accent);
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .flow-node:nth-child(2),
+    .flow-node:nth-child(5) { border-top-color: var(--accent-2); }
+    .flow-node:nth-child(3),
+    .flow-node:nth-child(6) { border-top-color: var(--accent-3); }
+
+    .flow-node:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      width: 14px;
+      color: var(--text-3);
+      font-weight: 900;
+      transform: translateY(-50%);
+      z-index: 2;
+    }
+
+    .flow-node b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text-1);
+      font-size: 17px;
+      line-height: 1.24;
+    }
+
+    .flow-node span {
+      display: block;
+      color: var(--text-2);
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+
+    .route-flow {
+      display: grid;
+      grid-template-columns: 1fr 32px 1fr 32px 1fr 32px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 24px;
+    }
+
+    .route-step {
+      min-height: 110px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+    }
+
+    .route-step strong {
+      display: block;
+      color: var(--text-1);
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .route-step code {
+      color: var(--accent);
+      font-size: 13px;
+      white-space: normal;
+    }
+
+    .route-arrow {
+      color: var(--text-3);
+      font-size: 26px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .table-like {
+      display: grid;
+      gap: 8px;
+    }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 0.9fr 1.35fr 1.2fr;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.9);
+      padding: 12px 14px;
+      font-size: 13.5px;
+      color: var(--text-2);
+    }
+
+    .table-row b {
+      color: var(--text-1);
+      font-size: 14px;
+    }
+
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .phase {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .phase .num {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--rail);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .phase h3 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.25;
+    }
+
+    .phase ul,
+    .check-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--text-2);
+      font-size: 13.5px;
+      line-height: 1.42;
+    }
+
+    .phase li,
+    .check-list li {
+      padding: 6px 0 6px 18px;
+      position: relative;
+    }
+
+    .phase li::before,
+    .check-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 13px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-2);
+    }
+
+    .pricing {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .price-card {
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--accent);
+      border-radius: 8px;
+      background: #fff;
+      padding: 20px;
+      min-height: 270px;
+    }
+
+    .price-card:nth-child(2) { border-top-color: var(--accent-2); }
+    .price-card:nth-child(3) { border-top-color: var(--accent-3); }
+
+    .price-card h3 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    .price-card .price {
+      color: var(--text-1);
+      font-size: 38px;
+      font-weight: 950;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .compact .slide-title {
+      font-size: 50px;
+      line-height: 1.02;
+    }
+
+    .compact .roadmap {
+      margin-top: 16px;
+    }
+
+    .compact .phase {
+      min-height: 206px;
+      padding: 14px;
+      gap: 8px;
+    }
+
+    .compact .phase h3 {
+      font-size: 18px;
+    }
+
+    .compact .phase li {
+      padding-top: 4px;
+      padding-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .compact .pricing {
+      margin-top: 16px;
+      gap: 16px;
+    }
+
+    .compact .price-card {
+      min-height: 188px;
+      padding: 18px;
+    }
+
+    .compact .price-card .price {
+      font-size: 34px;
+    }
+
+    .cover-grid {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 42px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .cover-title {
+      margin: 0;
+      color: var(--text-1);
+      font-size: 76px;
+      line-height: 1.02;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .cover-title span {
+      color: var(--accent);
+    }
+
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .source-list div {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
+      color: var(--text-2);
+      font-size: 13.5px;
+      line-height: 1.42;
+    }
+
+    .source-list b {
+      display: block;
+      color: var(--text-1);
+      margin-bottom: 4px;
+    }
+
+    .slide-number {
+      color: var(--text-3);
+    }
+
+    @media (max-width: 900px) {
+      .acctly-deck .slide {
+        padding: 46px 28px;
+      }
+
+      .deck-mark {
+        left: 26px;
+      }
+
+      .slide-title,
+      .cover-title {
+        font-size: 44px;
+      }
+
+      .two-col,
+      .cover-grid,
+      .three-col,
+      .four-col,
+      .pricing,
+      .roadmap,
+      .source-list {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-grid,
+      .route-flow {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-node:not(:last-child)::after,
+      .route-arrow {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body class="acctly-deck">
+<div class="deck">
+
+  <section class="slide" data-title="Cover">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <div class="cover-grid">
+      <div>
+        <div class="deck-chip">SaaS Deck · 2026-05-25</div>
+        <h1 class="cover-title anim-fade-up" data-anim="fade-up">台灣會計 OCR<br><span>SaaS 後台</span></h1>
+        <p class="slide-subtitle">把文件上傳、OCR 複核、會計核心、401 申報、財報匯出與稽核軌跡串成一條可驗證的月結作業鏈。</p>
+        <div class="cover-meta">
+          <div class="mini-card metric"><strong>19</strong><span>MVP 模組</span></div>
+          <div class="mini-card metric"><strong>26</strong><span>財報列資料</span></div>
+          <div class="mini-card metric"><strong>6</strong><span>已產生匯出檔</span></div>
+        </div>
+      </div>
+      <div class="screen-frame screen-wide">
+        <img src="assets/screenshots/01-dashboard.png" alt="ACCTLY dashboard screenshot">
+      </div>
+    </div>
+    <div class="deck-footer"><span>Docs + live web operation</span><span class="slide-number" data-current="1" data-total="12"></span></div>
+    <div class="notes">開場重點：這不是單純記分錄工具，而是從文件到申報的 SaaS 作業系統。數字取自本機網頁實際操作與 dashboard 狀態。</div>
+  </section>
+
+  <section class="slide" data-title="Problem">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Problem</p>
+    <h2 class="slide-title">台灣中小企業與事務所的痛點不是「沒有分錄」，而是流程斷裂。</h2>
+    <div class="three-col mt-l">
+      <div class="mini-card">
+        <h3>文件到帳務斷裂</h3>
+        <p>發票、銀行明細、401、財報、固定資產表分散在 PDF、掃描檔、Excel 與人工資料夾。</p>
+      </div>
+      <div class="mini-card">
+        <h3>申報與報表難勾稽</h3>
+        <p>401 銷售額、進項稅額、損益表收入、資產負債表本期損益需要跨表核對。</p>
+      </div>
+      <div class="mini-card">
+        <h3>月結缺少軌跡</h3>
+        <p>誰上傳、誰複核、何時改欄位、哪個版本申報，若沒有稽核紀錄就難以交接。</p>
+      </div>
+    </div>
+    <div class="tag-row">
+      <span class="tag red">人工複核成本高</span>
+      <span class="tag green">多公司權限隔離</span>
+      <span class="tag gold">401 / 403 / 404 合規</span>
+      <span class="tag">月結與鎖帳</span>
+      <span class="tag">文件保存</span>
+    </div>
+    <div class="deck-footer"><span>Problem framing</span><span class="slide-number" data-current="2" data-total="12"></span></div>
+    <div class="notes">這一頁從文件拆解的研究摘要提煉：市場功能不是單點，而是憑證蒐集、OCR、總帳、稅務、報表與歸檔的連續鏈路。</div>
+  </section>
+
+  <section class="slide" data-title="Positioning">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Positioning</p>
+    <h2 class="slide-title">市場被三類工具切開，ACCTLY 的位置是中間那條作業脊椎。</h2>
+    <div class="three-col mt-l">
+      <div class="panel">
+        <h3>傳統 ERP / 財會</h3>
+        <p>進銷存、帳款、總帳、財報、多部門、多幣別；功能完整但導入較重。</p>
+        <div class="tag-row"><span class="tag">鼎新 A1</span><span class="tag">正航</span><span class="tag">文中</span></div>
+      </div>
+      <div class="panel">
+        <h3>稅務申報系統</h3>
+        <p>電子發票匯入、進銷項、401 / 403、BAN.TXT、TET_U；強在申報輸出。</p>
+        <div class="tag-row"><span class="tag gold">報稅通</span><span class="tag gold">發票管理</span></div>
+      </div>
+      <div class="panel">
+        <h3>記帳士雲端工作台</h3>
+        <p>OCR、客戶上傳、自動對帳、月結報表、歸檔、簽核；強在協作流程。</p>
+        <div class="tag-row"><span class="tag green">CPA Cloud 型產品</span><span class="tag green">工作佇列</span></div>
+      </div>
+    </div>
+    <div class="panel mt-l">
+      <h3>ACCTLY 定位</h3>
+      <p>「會計核心 + 稅務合規 + OCR 文件入口」先完成可信資料鏈，再逐步擴充電子發票、進銷存、營所稅與事務所協作。</p>
+    </div>
+    <div class="deck-footer"><span>Market map</span><span class="slide-number" data-current="3" data-total="12"></span></div>
+    <div class="notes">這一頁可用來說明為什麼產品不只做 OCR，也不只做 ERP，而是優先打穿文件到報表的可信鏈路。</div>
+  </section>
+
+  <section class="slide" data-title="Operating Flow">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Flowchart</p>
+    <h2 class="slide-title">核心流程：從文件入庫到報表匯出，每一步都有資料表與審核狀態承接。</h2>
+    <div class="flow-grid">
+      <div class="flow-node"><b>1. 文件上傳</b><span>PDF / 圖片 / Excel / CSV 進入 documents，建立 OCR job 與 review task。</span></div>
+      <div class="flow-node"><b>2. OCR 抽取</b><span>分類文件類型，抽欄位、表格、金額與統編，保存 confidence。</span></div>
+      <div class="flow-node"><b>3. 勾稽驗證</b><span>401 稅額、資產負債平衡、跨報表差異與期別衝突。</span></div>
+      <div class="flow-node"><b>4. 人工複核</b><span>低信心與異常欄位進入待辦，人工修正後再入帳。</span></div>
+      <div class="flow-node"><b>5. 會計核心</b><span>科目、分錄、總帳、試算、應收應付、銀行與固定資產。</span></div>
+      <div class="flow-node"><b>6. 稅報輸出</b><span>401 草稿、財報列、月結包、CSV / 交換檔、稽核軌跡。</span></div>
+    </div>
+    <div class="deck-footer"><span>Product flow from docs and live pages</span><span class="slide-number" data-current="4" data-total="12"></span></div>
+    <div class="notes">這是依據功能拆解、README 路由與實際 dashboard 操作整理出的產品流程圖，可作為後續開發與銷售介紹的主軸。</div>
+  </section>
+
+  <section class="slide" data-title="Live Product">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Live Web Operation</p>
+    <h2 class="slide-title">實際網頁已具備 SaaS 控制台骨架：指標、待辦、文件、關帳與輸出狀態。</h2>
+    <div class="two-col mt-l">
+      <div class="screen-frame screen-wide">
+        <img src="assets/screenshots/01-dashboard.png" alt="ACCTLY dashboard">
+      </div>
+      <div class="panel">
+        <h3>已驗證的畫面訊號</h3>
+        <ul class="check-list">
+          <li>首頁顯示 2026-05 期別與本期關帳鏈路。</li>
+          <li>已存在 2 件複核待辦、9 件勾稽待處理。</li>
+          <li>最近文件包含 401 與資產負債表 PDF。</li>
+          <li>輸出狀態已有 1 筆已複核 401、26 筆財報列與 6 個匯出。</li>
+          <li>主導覽分為資料、帳務、交易、稅報、管控五組。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="deck-footer"><span>Dashboard evidence</span><span class="slide-number" data-current="5" data-total="12"></span></div>
+    <div class="notes">這頁用實際截圖降低抽象感。講述時可依右側清單帶過目前 MVP 的完成度與下一步風險：OCR / 批次頁受角色權限限制。</div>
+  </section>
+
+  <section class="slide" data-title="Web Route Flow">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Web Route Flow</p>
+    <h2 class="slide-title">網頁操作流程把五組導覽變成一條月結路徑。</h2>
+    <div class="route-flow">
+      <div class="route-step"><strong>總覽</strong><code>/</code><p>指標、待辦、本期關帳</p></div>
+      <div class="route-arrow">></div>
+      <div class="route-step"><strong>文件上傳</strong><code>/documents</code><p>建立 document、ocr_job、review_task</p></div>
+      <div class="route-arrow">></div>
+      <div class="route-step"><strong>帳務 / 交易</strong><code>/journal · /banking</code><p>分錄、總帳、銀行匹配</p></div>
+      <div class="route-arrow">></div>
+      <div class="route-step"><strong>稅報 / 匯出</strong><code>/taxes · /reports/vat-returns</code><p>401、財報列、匯出檔</p></div>
+    </div>
+    <div class="screen-stack">
+      <div class="screen-frame"><img src="assets/screenshots/02-documents.png" alt="Documents page"></div>
+      <div class="screen-frame"><img src="assets/screenshots/04-journal.png" alt="Journal page"></div>
+      <div class="screen-frame"><img src="assets/screenshots/07-vat-report.png" alt="VAT report page"></div>
+    </div>
+    <div class="deck-footer"><span>Route flow from browser operation</span><span class="slide-number" data-current="6" data-total="12"></span></div>
+    <div class="notes">這頁是使用者要求的「網頁本身操作製作流程圖」。我從首頁點進文件頁，再檢查帳務、銀行、稅務與 401 報表頁，整理出月結主路徑。</div>
+  </section>
+
+  <section class="slide" data-title="OCR Intelligence">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">OCR Intelligence</p>
+    <h2 class="slide-title">OCR 不是直接改帳，而是建立可複核的驗證底稿。</h2>
+    <div class="two-col mt-l">
+      <div class="panel">
+        <h3>9 步 OCR 流程</h3>
+        <div class="table-like">
+          <div class="table-row"><b>前處理</b><span>旋轉、去噪、裁切、表格線、頁面分割</span><span>提升掃描檔穩定性</span></div>
+          <div class="table-row"><b>分類與辨識</b><span>401、財報、銀行、發票、固定資產表</span><span>文字、表格、欄列關係</span></div>
+          <div class="table-row"><b>抽取與標準化</b><span>民國年、千分位、負數、統編、科目</span><span>寫入 confidence 與 raw value</span></div>
+          <div class="table-row"><b>驗證與複核</b><span>平衡、合計、稅額試算、跨報表比對</span><span>低信心欄位送人工確認</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>第一波文件類型</h3>
+        <ul class="check-list">
+          <li>資產負債表：資產、負債、權益、比較期與平衡規則。</li>
+          <li>401 營業稅：銷售額、銷項稅、進項稅、不得扣抵、留抵與應納稅額。</li>
+          <li>損益表：收入、成本、費用、營業外項目、稅前與稅後淨利。</li>
+          <li>現金流量表：營業、投資、籌資現金流與期初期末現金。</li>
+          <li>銀行、應收、應付、庫存、固定資產、年度申報附表。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="deck-footer"><span>OCR specification</span><span class="slide-number" data-current="7" data-total="12"></span></div>
+    <div class="notes">重點是可信鏈路：OCR 先作底稿與驗證，不直接改帳。這能降低 AI/OCR 誤判造成的會計風險。</div>
+  </section>
+
+  <section class="slide" data-title="Module Map">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Module Map</p>
+    <h2 class="slide-title">MVP 模組已覆蓋資料入口、帳務、交易、稅報與治理。</h2>
+    <div class="four-col mt-l">
+      <div class="panel">
+        <h3>資料</h3>
+        <p>文件上傳、OCR 任務、附件。</p>
+        <div class="tag-row"><span class="tag">Documents</span><span class="tag">OCR</span><span class="tag">Attachments</span></div>
+      </div>
+      <div class="panel">
+        <h3>帳務</h3>
+        <p>科目表、分錄 / 傳票、總帳、試算表。</p>
+        <div class="tag-row"><span class="tag">Accounts</span><span class="tag">Journal</span><span class="tag">Ledger</span></div>
+      </div>
+      <div class="panel">
+        <h3>交易</h3>
+        <p>應收、應付、銀行、銀行規則、匯入、固定資產、存貨。</p>
+        <div class="tag-row"><span class="tag">AR/AP</span><span class="tag">Banking</span><span class="tag">Assets</span></div>
+      </div>
+      <div class="panel">
+        <h3>稅報與管控</h3>
+        <p>稅務、財報、401、匯出、權限、審核、稽核、批次診斷。</p>
+        <div class="tag-row"><span class="tag">VAT</span><span class="tag">Reports</span><span class="tag">Audit</span></div>
+      </div>
+    </div>
+    <div class="screen-stack">
+      <div class="screen-frame"><img src="assets/screenshots/05-banking.png" alt="Banking module"></div>
+      <div class="screen-frame"><img src="assets/screenshots/06-taxes.png" alt="Tax module"></div>
+      <div class="screen-frame"><img src="assets/screenshots/04-journal.png" alt="Journal module"></div>
+    </div>
+    <div class="deck-footer"><span>19 MVP modules</span><span class="slide-number" data-current="8" data-total="12"></span></div>
+    <div class="notes">這頁可以講「產品完整度」。即使每個模組還是 MVP，資訊架構已經符合後台 SaaS 的主導航與責任邊界。</div>
+  </section>
+
+  <section class="slide" data-title="Tax Reporting">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Tax Compliance</p>
+    <h2 class="slide-title">401 報表是 MVP 的合規錨點：銷項、進項、扣抵、留抵與匯出都要能追溯。</h2>
+    <div class="two-col mt-l">
+      <div class="screen-frame screen-wide">
+        <img src="assets/screenshots/07-vat-report.png" alt="401 report data">
+      </div>
+      <div class="panel">
+        <h3>401 核心欄位與驗證</h3>
+        <ul class="check-list">
+          <li>所屬年月、統編、稅籍、營業人與申報類型。</li>
+          <li>應稅 / 零稅率銷售額、銷項稅額、進項稅額。</li>
+          <li>進貨費用、固定資產、不得扣抵、可扣抵進項。</li>
+          <li>應納稅額、留抵、退稅、附件份數與申報日期。</li>
+          <li>銷項稅額接近銷售額 5%，並與發票、損益表互相勾稽。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="deck-footer"><span>VAT return workflow</span><span class="slide-number" data-current="9" data-total="12"></span></div>
+    <div class="notes">401 是很好的商業切入點：有明確表單、明確欄位、明確驗證規則，也能自然連到發票、總帳與月結鎖帳。</div>
+  </section>
+
+  <section class="slide" data-title="Data Model">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Data Foundation</p>
+    <h2 class="slide-title">資料模型把 SaaS 權限、文件、OCR、會計與稽核分層。</h2>
+    <div class="table-like mt-l">
+      <div class="table-row"><b>使用者與權限</b><span>User、AuthSession、Company、CompanyUser</span><span>支援 OWNER、ADMIN、ACCOUNTANT、REVIEWER、CLIENT_READONLY。</span></div>
+      <div class="table-row"><b>期間與文件</b><span>AccountingPeriod、Document、OcrJob、OcrExtraction、ReviewTask</span><span>文件、期別、OCR 任務、抽取欄位與人工複核狀態。</span></div>
+      <div class="table-row"><b>稅報與財報</b><span>VatReturn、FinancialStatementLine、ValidationResult</span><span>401 與財報列資料進入驗證規則與報表中心。</span></div>
+      <div class="table-row"><b>會計核心</b><span>Account、JournalEntry、JournalLine、Counterparty、InvoiceRecord</span><span>科目、分錄、應收應付，形成總帳與試算表來源。</span></div>
+      <div class="table-row"><b>營運與治理</b><span>BankTransaction、ExportFile、AuditLog、ApprovalRequest、FixedAsset、InventoryItem</span><span>銀行對帳、匯出、審核、固定資產、存貨與操作留痕。</span></div>
+    </div>
+    <div class="deck-footer"><span>Prisma-backed SaaS model</span><span class="slide-number" data-current="10" data-total="12"></span></div>
+    <div class="notes">這頁讓技術與商業都能理解：資料模型不是單張表，而是從登入到稽核都已經有 SaaS 分層。</div>
+  </section>
+
+  <section class="slide" data-title="Operations">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Operations & Trust</p>
+    <h2 class="slide-title">會計 SaaS 的信任來自可驗證、可備份、可鎖帳與可稽核。</h2>
+    <div class="three-col mt-l">
+      <div class="panel">
+        <h3>權限與稽核</h3>
+        <p>角色矩陣控制模組 read / write；登入、審核、匯出、沖銷、作廢都能寫入 AuditLog。</p>
+      </div>
+      <div class="panel">
+        <h3>本機資料隔離</h3>
+        <p>PostgreSQL 固定走 127.0.0.1:55432，uploads / exports / backups 都留在專案資料夾。</p>
+      </div>
+      <div class="panel">
+        <h3>交付驗證</h3>
+        <p>README 以 `npm run verify` 作為 lint、test、Prisma validate、Next build 的一站式品質門檻。</p>
+      </div>
+    </div>
+    <div class="panel mt-l">
+      <h3>產品級控制點</h3>
+      <div class="tag-row">
+        <span class="tag green">月結檢查清單</span>
+        <span class="tag green">期別鎖帳</span>
+        <span class="tag gold">備份 / 還原</span>
+        <span class="tag red">驗證異常</span>
+        <span class="tag">審核待辦</span>
+        <span class="tag">匯出版本</span>
+      </div>
+    </div>
+    <div class="deck-footer"><span>Trust controls</span><span class="slide-number" data-current="11" data-total="12"></span></div>
+    <div class="notes">會計產品的買點不只功能多，而是錯誤能被抓到、責任能被追到、資料能被復原。</div>
+  </section>
+
+  <section class="slide compact" data-title="Roadmap and Business Model">
+    <div class="deck-mark"><span class="mark-icon">A</span><span>ACCTLY</span></div>
+    <p class="section-label">Roadmap + SaaS Packaging</p>
+    <h2 class="slide-title">可信資料鏈，擴成事務所協作平台。</h2>
+    <div class="roadmap">
+      <div class="phase"><span class="num">1</span><h3>OCR 報表資料庫</h3><ul><li>公司、期間、文件、OCR、複核</li><li>資產負債表與 401</li><li>資料卡與 PDF / Excel 匯出</li></ul></div>
+      <div class="phase"><span class="num">2</span><h3>憑證到營業稅</h3><ul><li>統一發票 / 電子發票</li><li>扣抵判斷與重複檢查</li><li>BAN.TXT / TET_U</li></ul></div>
+      <div class="phase"><span class="num">3</span><h3>完整會計循環</h3><ul><li>總帳、試算、損益表</li><li>應收應付、銀行對帳</li><li>固定資產折舊與年度包</li></ul></div>
+      <div class="phase"><span class="num">4</span><h3>事務所協作</h3><ul><li>客戶上傳入口</li><li>記帳士工作佇列</li><li>多公司、權限、簽核、稽核</li></ul></div>
+    </div>
+    <div class="pricing">
+      <div class="price-card"><h3>Starter</h3><div class="price">NT$ 990</div><p>單公司、文件上傳、401 / 財報資料庫、基礎匯出。</p></div>
+      <div class="price-card"><h3>Firm</h3><div class="price">NT$ 3,990+</div><p>多公司、客戶入口、批次 OCR、審核工作流、月結包。</p></div>
+      <div class="price-card"><h3>Compliance Add-on</h3><div class="price">用量制</div><p>電子發票串接、申報媒體檔、OCR 頁數、長期歸檔。</p></div>
+    </div>
+    <div class="deck-footer"><span>Proposed packaging</span><span class="slide-number" data-current="12" data-total="12"></span></div>
+    <div class="notes">價格是簡報建議包裝，不是既有文件中的定價。若要對外使用，下一步應用真實客戶訪談與成本模型校正。</div>
+  </section>
+
+</div>
+<script src="assets/html-ppt/runtime.js"></script>
+</body>
+</html>

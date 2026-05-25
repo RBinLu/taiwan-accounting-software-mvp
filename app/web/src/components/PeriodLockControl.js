@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { csrfHeaders } from "@/lib/client-security";
-import StatusBadge from "./StatusBadge";
+import StatusBadge from "./StatusBadge.js";
 
 function moneyText(value) {
   return new Intl.NumberFormat("zh-TW", {
@@ -60,6 +60,7 @@ export default function PeriodLockControl({ periodState }) {
     }
   ];
   const completedCount = closeChecks.filter((check) => check.complete).length;
+  const progressPercent = Math.round((completedCount / closeChecks.length) * 100);
 
   async function submitAction() {
     setIsSaving(true);
@@ -87,16 +88,24 @@ export default function PeriodLockControl({ periodState }) {
 
   return (
     <div className="period-lock-panel">
-      <div className="module-section-head">
-        <span>Period Control</span>
-        <h2>期別鎖帳</h2>
+      <div className="period-lock-topline">
+        <div className="module-section-head">
+          <span>Period Control</span>
+          <h2>期別鎖帳</h2>
+        </div>
+        <StatusBadge value={periodState.isLocked ? "LOCKED" : "OPEN_PERIOD"} />
       </div>
       <div className="period-lock-status">
         <div>
           <span>{periodState.taxPeriod}</span>
           <strong>{periodState.isLocked ? "已鎖帳" : "開放中"}</strong>
         </div>
-        <StatusBadge value={periodState.isLocked ? "LOCKED" : "OPEN_PERIOD"} />
+        <div className="period-lock-progress-value">{progressPercent}%</div>
+      </div>
+      <div className="period-lock-progress" aria-label={`月結完成度 ${progressPercent}%`}>
+        <span>
+          <i style={{ width: `${progressPercent}%` }} />
+        </span>
       </div>
       <div className="period-close-checks">
         <div className="close-checks-head">
@@ -110,8 +119,10 @@ export default function PeriodLockControl({ periodState }) {
             className={`close-check ${check.complete ? "complete" : "pending"}`}
             key={check.label}
           >
-            <span>{check.complete ? "完成" : "待處理"}</span>
-            <div>
+            <span className="close-check-marker" aria-hidden="true">
+              {check.complete ? "✓" : "!"}
+            </span>
+            <div className="close-check-copy">
               <strong>{check.label}</strong>
               <small>{check.detail}</small>
             </div>

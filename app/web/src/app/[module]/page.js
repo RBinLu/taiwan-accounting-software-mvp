@@ -798,7 +798,10 @@ export default async function ModulePage({ params }) {
         <aside className="module-side-panel">
           <div className="module-context-grid">
             {data.context.map((item) => (
-              <div className="module-context" key={item.label}>
+              <div
+                className={`module-context ${item.label === "公司" ? "wide" : ""}`}
+                key={item.label}
+              >
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
               </div>

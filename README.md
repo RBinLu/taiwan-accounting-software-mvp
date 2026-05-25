@@ -14,6 +14,7 @@
 
 | 版本 | 日期 | GitHub 推送狀態 | 內容摘要 | 驗證 |
 | --- | --- | --- | --- | --- |
+| `v1.0.3` | 2026-05-25 | 已推送 | 推送目前工作區版本：補上 ACCTLY SaaS deck 交付檔、模組頁公司資訊欄位加寬以避免長公司名壓縮、期別鎖帳區塊加入完成度與更清楚的月結檢查狀態。 | `npm run test`、`npm run build` |
 | `v1.0.2` | 2026-05-25 | 已推送 | 修復外網操作穩定性：OCR 任務不再因讀取權限導回登入、文件上傳支援外部網域原生 multipart fallback、手機常見圖片格式與 25MB 上限納入上傳驗證、主選單改為一次只展開一個群組並移除 hover 疊開問題。未改動既有 UI/UX 視覺設定。 | `npm run test`、`npm run build`、Chrome 外網選單驗證 |
 | `v1.0.1` | 2026-05-24 | 已推送 | 修復 code review 發現的三個一致性問題：固定資產既有資料禁止直接改動取得日 / 成本 / 殘值 / 耐用月數以避免總帳不同步、固定資產併發建立遇 unique 衝突時改走安全更新流程、匯出 CSV 移出長交易並在 DB / audit 失敗時清理剛產生的檔案。未調整既有 UI/UX 設定。 | `npm run verify` |
 | `v1.0.0` | 2026-05-24 | 已推送 | 以 `karpathy-guidelines` 原則完成第一輪非 UI/UX 程式碼穩定性強化：固定核心套件版本、補上 lint / test / verify 指令、強化 API 稽核寫入交易一致性、改善會計工作流併發保護與固定資產更新邏輯，並新增核心流程測試。未調整既有 UI/UX 設定。 | `npm run lint`、`npm run test`、`npm run db:validate`、`npm run build` |
